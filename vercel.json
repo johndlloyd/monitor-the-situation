@@ -1,7 +1,12 @@
 {
-  "name": "monitor-the-situation",
+  "rewrites": [
+    {
+      "source": "/api/proxy/:path*",
+      "destination": "https://www.udottraffic.utah.gov/:path*"
+    }
+  ],
   "functions": {
-    "api/**/*.js": {
+    "api/*.js": {
       "maxDuration": 30
     }
   }
