@@ -703,25 +703,35 @@ input[type="range"] {
   .logo-sub        { display: none; }
   .header-right    { gap: 8px; }
 
-  /* Stack sidebar above grid */
+  /* Stack sidebar above grid in a column */
   #main {
     flex-direction: column;
     overflow: hidden;
   }
 
-  /* Sidebar: hidden by default, shown via toggle */
+  /* Sidebar: MAP VIEW — visible by default on mobile */
   #sidebar {
-    display: none;
+    display: flex;
     width: 100% !important;
-    flex: 0 0 auto !important;
-    max-height: 55vh;
-    overflow-y: auto;
+    flex: 1 !important;
+    max-height: none;
+    overflow: hidden;   /* map stays fixed; region list scrolls independently */
     border-right: none;
-    border-bottom: 1px solid var(--border);
+    border-bottom: none;
   }
-  #sidebar.mobile-open { display: flex; }
+  /* Hidden when switched to feeds view */
+  #sidebar.mobile-hidden { display: none !important; }
 
-  #map-container { height: 160px; }
+  /* Map takes up most of the screen */
+  #map-container { height: 52vh; min-height: 180px; }
+
+  /* Region buttons fill remaining height below map, scroll if needed */
+  #sidebar > .filter-section {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    border-bottom: none;
+  }
 
   /* 4-column region grid on mobile */
   .region-grid { grid-template-columns: repeat(4, 1fr); }
@@ -729,12 +739,15 @@ input[type="range"] {
   /* Hide the corner resize handle */
   #map-resizer { display: none; }
 
-  /* Grid panel: fill remaining height, make scrollable */
+  /* Grid panel: FEEDS VIEW — hidden by default on mobile */
   #grid-panel {
+    display: none;
     flex: 1;
     min-height: 0;
     overflow: hidden;
   }
+  #grid-panel.mobile-visible { display: flex; }
+
   #camera-grid {
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;

@@ -576,24 +576,27 @@ function refreshAllVisible() {
 function bindControls() {
 
 
-  // Mobile map/sidebar toggle
+  // Mobile view toggle: MAP ↔ FEEDS
   const mapToggleBtn = document.getElementById('btn-map-toggle');
   if (mapToggleBtn) {
-    mapToggleBtn.addEventListener('click', () => {
-      const sidebar = document.getElementById('sidebar');
-      sidebar.classList.toggle('mobile-open');
-      mapToggleBtn.classList.toggle('active');
-      if (state.map) setTimeout(() => state.map.invalidateSize(), 50);
-    });
+    // Set initial label: we start on the map, so button leads to feeds
+    if (window.innerWidth <= 600) {
+      mapToggleBtn.textContent = '⊞ FEEDS';
+      mapToggleBtn.title = 'View camera feeds';
+    }
+    mapToggleBtn.addEventListener('click', () => setMobileView(
+      document.getElementById('grid-panel').classList.contains('mobile-visible') ? 'map' : 'feeds'
+    ));
   }
 
-  // Region buttons
+  // Region buttons — on mobile, auto-switch to feeds after selecting a city
   document.querySelectorAll('.btn-region').forEach(btn => {
     btn.addEventListener('click', () => {
       const lat  = parseFloat(btn.dataset.lat);
       const lng  = parseFloat(btn.dataset.lng);
       const zoom = parseInt(btn.dataset.zoom);
       state.map.setView([lat, lng], zoom);
+      if (window.innerWidth <= 600) setMobileView('feeds');
     });
   });
 
@@ -714,6 +717,26 @@ function startPresence() {
 
   heartbeat();
   setInterval(heartbeat, 30000);
+}
+
+// ── Mobile two-view layout ─────────────────────
+// On mobile: MAP view (sidebar) ↔ FEEDS view (grid-panel)
+function setMobileView(view) {
+  if (window.innerWidth > 600) return;
+  const sidebar   = document.getElementById('sidebar');
+  const gridPanel = document.getElementById('grid-panel');
+  const btn       = document.getElementById('btn-map-toggle');
+
+  if (view === 'feeds') {
+    sidebar.classList.add('mobile-hidden');
+    gridPanel.classList.add('mobile-visible');
+    if (btn) { btn.textContent = '← MAP'; btn.classList.add('active'); }
+  } else {
+    sidebar.classList.remove('mobile-hidden');
+    gridPanel.classList.remove('mobile-visible');
+    if (btn) { btn.textContent = '⊞ FEEDS'; btn.classList.remove('active'); }
+    if (state.map) setTimeout(() => state.map.invalidateSize(), 50);
+  }
 }
 
 // ── Modal touch: swipe + fullscreen ───────────
