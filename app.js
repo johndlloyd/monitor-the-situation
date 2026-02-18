@@ -37,6 +37,7 @@ window.addEventListener('DOMContentLoaded', init);
 async function init() {
   startClock();
   initMap();
+  initResizer();
   bindControls();
   await loadCameras();
   startRefreshCycle();
@@ -55,6 +56,41 @@ function startClock() {
   };
   tick();
   setInterval(tick, 1000);
+}
+
+// ── Sidebar Resizer ────────────────────────────
+function initResizer() {
+  const resizer = document.getElementById('sidebar-resizer');
+  const sidebar = document.getElementById('sidebar');
+
+  resizer.addEventListener('mousedown', e => {
+    e.preventDefault();
+    const startX     = e.clientX;
+    const startWidth = sidebar.offsetWidth;
+
+    resizer.classList.add('dragging');
+    document.body.style.cursor     = 'col-resize';
+    document.body.style.userSelect = 'none';
+
+    function onMove(e) {
+      const w = Math.max(160, Math.min(640, startWidth + e.clientX - startX));
+      sidebar.style.width = w + 'px';
+      sidebar.style.flex  = `0 0 ${w}px`;
+      if (state.map) state.map.invalidateSize();
+    }
+
+    function onUp() {
+      resizer.classList.remove('dragging');
+      document.body.style.cursor     = '';
+      document.body.style.userSelect = '';
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup',   onUp);
+      if (state.map) state.map.invalidateSize();
+    }
+
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup',   onUp);
+  });
 }
 
 // ── Map ────────────────────────────────────────

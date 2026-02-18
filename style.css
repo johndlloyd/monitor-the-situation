@@ -284,6 +284,21 @@ input[type="range"] {
 }
 .btn-region:hover { border-color: var(--accent3); color: var(--accent3); }
 
+/* ── SIDEBAR RESIZER ── */
+#sidebar-resizer {
+  flex: 0 0 5px;
+  width: 5px;
+  background: var(--border);
+  cursor: col-resize;
+  transition: background .15s;
+  position: relative;
+  z-index: 10;
+}
+#sidebar-resizer:hover,
+#sidebar-resizer.dragging {
+  background: var(--accent3);
+}
+
 /* ══ GRID PANEL ═══════════════════════════════ */
 #grid-panel {
   flex: 1;
