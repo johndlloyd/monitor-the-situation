@@ -40,6 +40,7 @@ async function init() {
   bindControls();
   await loadCameras();
   startRefreshCycle();
+  startPresence();
 }
 
 // ── Clock ──────────────────────────────────────
@@ -618,6 +619,27 @@ function haversine(lat1, lng1, lat2, lng2) {
   const Δλ = (lng2 - lng1) * Math.PI / 180;
   const a = Math.sin(Δφ/2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ/2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+// ── Presence counter ───────────────────────────
+function startPresence() {
+  const sessionId = Math.random().toString(36).slice(2) + Date.now().toString(36);
+  const el = document.getElementById('presence-count');
+
+  async function heartbeat() {
+    try {
+      const r = await fetch('/api/presence', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId }),
+      });
+      const { count } = await r.json();
+      if (el) el.textContent = count;
+    } catch (_) {}
+  }
+
+  heartbeat();
+  setInterval(heartbeat, 30000);
 }
 
 // ── Demo fallback (if CORS blocks) ────────────
