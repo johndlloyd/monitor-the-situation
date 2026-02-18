@@ -38,6 +38,7 @@ async function init() {
   startClock();
   initMap();
   initResizer();
+  initModalTouch();
   bindControls();
   if (window.innerWidth <= 600) state.gridSize = 2;
   await loadCameras();
@@ -490,9 +491,22 @@ function openModal(cam) {
 
   overlay.style.display = 'flex';
   document.addEventListener('keydown', onModalKey);
+
+  // Brief swipe hint on touch devices
+  if ('ontouchstart' in window) {
+    const wrap = document.getElementById('modal-img-wrap');
+    const old  = wrap.querySelector('.swipe-hint');
+    if (old) old.remove();
+    const hint = document.createElement('div');
+    hint.className = 'swipe-hint';
+    hint.textContent = '◀  swipe to navigate  ▶';
+    wrap.appendChild(hint);
+    setTimeout(() => hint.remove(), 2100);
+  }
 }
 
 window.closeModal = function() {
+  if (_fsActive) exitFsMode();
   document.getElementById('modal-overlay').style.display = 'none';
   document.removeEventListener('keydown', onModalKey);
   state.modalCam = null;
@@ -608,6 +622,13 @@ function bindControls() {
   // Modal nav
   document.getElementById('btn-modal-prev').addEventListener('click', () => navModal(-1));
   document.getElementById('btn-modal-next').addEventListener('click', () => navModal(1));
+  document.getElementById('btn-fullscreen').addEventListener('click', toggleFullscreen);
+  document.addEventListener('fullscreenchange', () => {
+    if (!document.fullscreenElement && _fsActive) exitFsMode();
+  });
+  document.addEventListener('webkitfullscreenchange', () => {
+    if (!document.webkitFullscreenElement && _fsActive) exitFsMode();
+  });
 
   // Keyboard global shortcuts
   document.addEventListener('keydown', e => {
@@ -693,6 +714,88 @@ function startPresence() {
 
   heartbeat();
   setInterval(heartbeat, 30000);
+}
+
+// ── Modal touch: swipe + fullscreen ───────────
+let _touchStartX = 0;
+let _touchStartY = 0;
+let _touchStartT = 0;
+let _fsActive    = false;
+
+function initModalTouch() {
+  const wrap = document.getElementById('modal-img-wrap');
+
+  // Swipe left/right to navigate cameras
+  wrap.addEventListener('touchstart', e => {
+    _touchStartX = e.touches[0].clientX;
+    _touchStartY = e.touches[0].clientY;
+    _touchStartT = Date.now();
+  }, { passive: true });
+
+  wrap.addEventListener('touchend', e => {
+    const dx = e.changedTouches[0].clientX - _touchStartX;
+    const dy = e.changedTouches[0].clientY - _touchStartY;
+    const dt = Date.now() - _touchStartT;
+    // Quick, primarily horizontal gesture
+    if (dt < 400 && Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+      if (dx < 0) navModal(1);   // swipe left  → next
+      else        navModal(-1);  // swipe right → prev
+    }
+  }, { passive: true });
+}
+
+function toggleFullscreen() {
+  _fsActive ? exitFsMode() : enterFsMode();
+}
+
+function enterFsMode() {
+  const overlay = document.getElementById('modal-overlay');
+  const req = overlay.requestFullscreen
+            || overlay.webkitRequestFullscreen
+            || overlay.mozRequestFullScreen;
+
+  if (req) {
+    req.call(overlay)
+      .then(lockLandscape)
+      .catch(() => enableCssFs(overlay));
+  } else {
+    enableCssFs(overlay);
+  }
+  _fsActive = true;
+  document.getElementById('btn-fullscreen').classList.add('active');
+}
+
+function enableCssFs(overlay) {
+  overlay.classList.add('fs-active');
+  lockLandscape();
+}
+
+function exitFsMode() {
+  const overlay = document.getElementById('modal-overlay');
+  if (document.fullscreenElement || document.webkitFullscreenElement) {
+    (document.exitFullscreen || document.webkitExitFullscreen || (() => {})).call(document);
+  }
+  overlay.classList.remove('fs-active');
+  unlockOrientation();
+  _fsActive = false;
+  const btn = document.getElementById('btn-fullscreen');
+  if (btn) btn.classList.remove('active');
+}
+
+function lockLandscape() {
+  try {
+    if (screen.orientation && typeof screen.orientation.lock === 'function') {
+      screen.orientation.lock('landscape').catch(function() {});
+    }
+  } catch (_) {}
+}
+
+function unlockOrientation() {
+  try {
+    if (screen.orientation && typeof screen.orientation.unlock === 'function') {
+      screen.orientation.unlock();
+    }
+  } catch (_) {}
 }
 
 // ── Demo fallback (if CORS blocks) ────────────

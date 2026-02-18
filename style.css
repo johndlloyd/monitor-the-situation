@@ -608,6 +608,74 @@ input[type="range"] {
   flex: 0 0 auto;
 }
 
+/* ══ FULLSCREEN MODAL ════════════════════════ */
+
+/* Native Fullscreen API */
+#modal-overlay:fullscreen,
+#modal-overlay:-webkit-full-screen {
+  background: #000;
+}
+#modal-overlay:fullscreen #modal,
+#modal-overlay:-webkit-full-screen #modal {
+  width: 100vw !important;
+  height: 100vh !important;
+  max-height: 100vh !important;
+  border-radius: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+#modal-overlay:fullscreen #modal-img,
+#modal-overlay:-webkit-full-screen #modal-img {
+  max-height: calc(100vh - 88px);
+}
+
+/* CSS fallback fullscreen (iOS Safari / unsupported browsers) */
+#modal-overlay.fs-active {
+  background: #000;
+  z-index: 9999;
+}
+#modal-overlay.fs-active #modal {
+  width: 100vw !important;
+  height: 100vh !important;
+  max-height: 100vh !important;
+  border-radius: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+#modal-overlay.fs-active #modal-img {
+  max-height: calc(100vh - 88px);
+}
+
+/* Fullscreen button — always visible, highlights when active */
+#btn-fullscreen { font-size: 14px; padding: 2px 7px; }
+#btn-fullscreen.active {
+  border-color: var(--accent3);
+  color: var(--accent3);
+}
+
+/* Swipe hint shown briefly when modal opens on touch devices */
+#modal-img-wrap .swipe-hint {
+  position: absolute;
+  bottom: 32px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,.5);
+  color: rgba(255,255,255,.8);
+  font-size: 9px;
+  letter-spacing: .14em;
+  padding: 3px 12px;
+  border-radius: 10px;
+  pointer-events: none;
+  animation: hint-fade 2s ease forwards;
+  white-space: nowrap;
+}
+@keyframes hint-fade {
+  0%   { opacity: 0; }
+  20%  { opacity: 1; }
+  70%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+
 /* ══ KEYBOARD HINT ══════════════════════════ */
 .kbd-hint {
   position: fixed;
