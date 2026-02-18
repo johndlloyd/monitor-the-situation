@@ -60,37 +60,6 @@ function startClock() {
 
 // ── Sidebar Resizer ────────────────────────────
 function initResizer() {
-  // Left/right sidebar width drag
-  const sidebarResizer = document.getElementById('sidebar-resizer');
-  const sidebar        = document.getElementById('sidebar');
-
-  sidebarResizer.addEventListener('mousedown', e => {
-    e.preventDefault();
-    const startX     = e.clientX;
-    const startWidth = sidebar.offsetWidth;
-
-    sidebarResizer.classList.add('dragging');
-    document.body.style.cursor     = 'col-resize';
-    document.body.style.userSelect = 'none';
-
-    function onMove(e) {
-      const w = Math.max(160, Math.min(640, startWidth + e.clientX - startX));
-      sidebar.style.width = w + 'px';
-      sidebar.style.flex  = `0 0 ${w}px`;
-      if (state.map) state.map.invalidateSize();
-    }
-    function onUp() {
-      sidebarResizer.classList.remove('dragging');
-      document.body.style.cursor     = '';
-      document.body.style.userSelect = '';
-      document.removeEventListener('mousemove', onMove);
-      document.removeEventListener('mouseup',   onUp);
-      if (state.map) state.map.invalidateSize();
-    }
-    document.addEventListener('mousemove', onMove);
-    document.addEventListener('mouseup',   onUp);
-  });
-
   // Map height drag — bottom-right corner handle
   const mapResizer  = document.getElementById('map-resizer');
   const mapContainer = document.getElementById('map-container');
