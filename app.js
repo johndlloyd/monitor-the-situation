@@ -204,9 +204,9 @@ async function loadCameras() {
 
     updateStats();
   } catch (err) {
-    console.error('Camera load error:', err);
-    setStatus('ERROR: FALLING BACK TO DEMO MODE', 100);
-    loadDemoFallback();
+    console.error('[MTS] Camera load error:', err);
+    setStatus('ERROR: FAILED TO CONNECT TO UDOT', 100);
+    loadDemoFallback(err.message);
     setTimeout(hideLoading, 600);
   }
 }
@@ -696,11 +696,12 @@ function startPresence() {
 }
 
 // ── Demo fallback (if CORS blocks) ────────────
-function loadDemoFallback() {
-  // Show a note that this needs to be served via proxy or same-origin
-  const grid = document.getElementById('camera-grid');
+function loadDemoFallback(errMsg) {
+  const grid  = document.getElementById('camera-grid');
   const noRes = document.getElementById('no-results');
   noRes.style.display = 'none';
+
+  const isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
 
   const note = document.createElement('div');
   note.style.cssText = `
@@ -712,12 +713,29 @@ function loadDemoFallback() {
     line-height: 2;
     letter-spacing: .08em;
   `;
-  note.innerHTML = `
-    <div style="color:var(--accent);font-size:14px;margin-bottom:12px">// CORS RESTRICTION DETECTED</div>
-    <div>UDOT API requires a proxy server for browser access.</div>
-    <div>Run the CLI tool or deploy with the included proxy:</div>
-    <div style="margin-top:12px;color:var(--accent2)">node cli/mts-cli.js serve --port 8080</div>
-    <div style="margin-top:8px">Then open: <span style="color:var(--accent)">http://localhost:8080</span></div>
-  `;
+
+  if (isLocal) {
+    note.innerHTML = `
+      <div style="color:var(--accent);font-size:14px;margin-bottom:12px">// PROXY SERVER REQUIRED</div>
+      <div>Run the CLI tool to start the local proxy:</div>
+      <div style="margin-top:12px;color:var(--accent2)">node cli/mts-cli.js serve --port 8080</div>
+      <div style="margin-top:8px">Then open: <span style="color:var(--accent)">http://localhost:8080</span></div>
+    `;
+  } else {
+    note.innerHTML = `
+      <div style="color:var(--accent);font-size:14px;margin-bottom:12px">// FAILED TO CONNECT TO UDOT API</div>
+      <div>Could not load camera data. The service may be temporarily unavailable.</div>
+      <div style="margin-top:12px">
+        <button onclick="location.reload()" style="
+          background:transparent;border:1px solid var(--border);color:var(--text-dim);
+          font-family:var(--font-mono);font-size:10px;padding:6px 16px;
+          border-radius:2px;cursor:pointer;letter-spacing:.08em;">
+          ↺ RETRY
+        </button>
+      </div>
+      ${errMsg ? `<div style="margin-top:12px;color:var(--text-meta);font-size:9px">${errMsg}</div>` : ''}
+    `;
+  }
+
   grid.appendChild(note);
 }

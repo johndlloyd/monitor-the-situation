@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/proxy/:path*",
-      "destination": "https://www.udottraffic.utah.gov/:path*"
+      "destination": "/api/udot?p=/:path*"
     }
   ],
   "functions": {
