@@ -163,16 +163,34 @@ function clearCircle() {
 }
 
 // ── Load Cameras ───────────────────────────────
-async function loadCameras() {
-  setStatus('FETCHING CAMERA MANIFEST...', 10);
+async function loadCameras(attempt) {
+  attempt = attempt || 1;
+  const MAX = 3;
+
+  setStatus(
+    attempt === 1 ? 'FETCHING CAMERA MANIFEST...' : `RETRYING... (${attempt}/${MAX})`,
+    10 * attempt
+  );
 
   try {
-    // First fetch all map icon positions (fast, has coords + IDs)
-    const r1 = await fetch(`${PROXY_PFX}/map/mapIcons/Cameras`, {
+    const r1   = await fetch(`${PROXY_PFX}/map/mapIcons/Cameras`, {
       headers: { 'Accept': 'application/json' }
     });
-    const iconData = await r1.json();
+    const text = await r1.text();
+
+    let iconData;
+    try { iconData = JSON.parse(text); }
+    catch (_) { throw new Error('UDOT returned non-JSON: ' + text.slice(0, 60)); }
+
+    if (iconData.error) throw new Error(iconData.error);
+
     const iconItems = iconData.item2 || [];
+
+    // Empty item2 on a valid JSON response — retry once more before giving up
+    if (!iconItems.length && attempt < MAX) {
+      await new Promise(r => setTimeout(r, 1500 * attempt));
+      return loadCameras(attempt + 1);
+    }
 
     setStatus(`PARSING ${iconItems.length} CAMERA POSITIONS...`, 40);
 
@@ -205,7 +223,12 @@ async function loadCameras() {
 
     updateStats();
   } catch (err) {
-    console.error('[MTS] Camera load error:', err);
+    console.error(`[MTS] Attempt ${attempt} failed:`, err.message);
+    if (attempt < MAX) {
+      setStatus(`RETRYING... (${attempt + 1}/${MAX})`, 20);
+      await new Promise(r => setTimeout(r, 2000 * attempt));
+      return loadCameras(attempt + 1);
+    }
     setStatus('ERROR: FAILED TO CONNECT TO UDOT', 100);
     loadDemoFallback(err.message);
     setTimeout(hideLoading, 600);
