@@ -41,7 +41,7 @@ async function init() {
   bindControls();
   await loadCameras();
   startRefreshCycle();
-  startPresence();
+  // startPresence();
 }
 
 // ── Clock ──────────────────────────────────────
