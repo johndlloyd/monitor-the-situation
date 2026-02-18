@@ -60,15 +60,16 @@ function startClock() {
 
 // ── Sidebar Resizer ────────────────────────────
 function initResizer() {
-  const resizer = document.getElementById('sidebar-resizer');
-  const sidebar = document.getElementById('sidebar');
+  // Left/right sidebar width drag
+  const sidebarResizer = document.getElementById('sidebar-resizer');
+  const sidebar        = document.getElementById('sidebar');
 
-  resizer.addEventListener('mousedown', e => {
+  sidebarResizer.addEventListener('mousedown', e => {
     e.preventDefault();
     const startX     = e.clientX;
     const startWidth = sidebar.offsetWidth;
 
-    resizer.classList.add('dragging');
+    sidebarResizer.classList.add('dragging');
     document.body.style.cursor     = 'col-resize';
     document.body.style.userSelect = 'none';
 
@@ -78,16 +79,45 @@ function initResizer() {
       sidebar.style.flex  = `0 0 ${w}px`;
       if (state.map) state.map.invalidateSize();
     }
-
     function onUp() {
-      resizer.classList.remove('dragging');
+      sidebarResizer.classList.remove('dragging');
       document.body.style.cursor     = '';
       document.body.style.userSelect = '';
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup',   onUp);
       if (state.map) state.map.invalidateSize();
     }
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup',   onUp);
+  });
 
+  // Map height drag — bottom-right corner handle
+  const mapResizer  = document.getElementById('map-resizer');
+  const mapContainer = document.getElementById('map-container');
+
+  mapResizer.addEventListener('mousedown', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    const startY      = e.clientY;
+    const startHeight = mapContainer.offsetHeight;
+
+    mapResizer.classList.add('dragging');
+    document.body.style.cursor     = 'ns-resize';
+    document.body.style.userSelect = 'none';
+
+    function onMove(e) {
+      const h = Math.max(80, Math.min(window.innerHeight * 0.75, startHeight + e.clientY - startY));
+      mapContainer.style.height = h + 'px';
+      if (state.map) state.map.invalidateSize();
+    }
+    function onUp() {
+      mapResizer.classList.remove('dragging');
+      document.body.style.cursor     = '';
+      document.body.style.userSelect = '';
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup',   onUp);
+      if (state.map) state.map.invalidateSize();
+    }
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup',   onUp);
   });

@@ -125,8 +125,30 @@ html, body {
 /* ── MAP ── */
 #map-container {
   position: relative;
-  flex: 0 0 240px;
+  flex: 0 0 auto;
   height: 240px;
+  min-height: 80px;
+}
+
+#map-resizer {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 20px;
+  height: 20px;
+  cursor: ns-resize;
+  z-index: 600;
+  /* Diagonal corner indicator */
+  background: linear-gradient(135deg, transparent 40%, var(--border) 40%, var(--border) 60%, transparent 60%),
+              linear-gradient(135deg, transparent 60%, var(--border) 60%);
+  opacity: 0.7;
+  transition: opacity .15s;
+}
+#map-resizer:hover,
+#map-resizer.dragging {
+  background: linear-gradient(135deg, transparent 40%, var(--accent3) 40%, var(--accent3) 60%, transparent 60%),
+              linear-gradient(135deg, transparent 60%, var(--accent3) 60%);
+  opacity: 1;
 }
 
 #map {
