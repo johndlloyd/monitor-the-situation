@@ -625,8 +625,71 @@ input[type="range"] {
   :root { --sidebar-w: 220px; }
 }
 
+/* ── Mobile toggle button: hidden on desktop ── */
+#btn-map-toggle { display: none; }
+
 @media (max-width: 600px) {
-  #sidebar { display: none; }
+  /* Header: compact — hide stats and subtitle */
+  #btn-map-toggle  { display: inline-flex; }
+  .header-center   { display: none; }
+  .logo-sub        { display: none; }
+  .header-right    { gap: 8px; }
+
+  /* Stack sidebar above grid */
+  #main {
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* Sidebar: hidden by default, shown via toggle */
+  #sidebar {
+    display: none;
+    width: 100% !important;
+    flex: 0 0 auto !important;
+    max-height: 55vh;
+    overflow-y: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+  #sidebar.mobile-open { display: flex; }
+
+  #map-container { height: 160px; }
+
+  /* 4-column region grid on mobile */
+  .region-grid { grid-template-columns: repeat(4, 1fr); }
+
+  /* Hide the corner resize handle */
+  #map-resizer { display: none; }
+
+  /* Grid panel: fill remaining height, make scrollable */
+  #grid-panel {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
+  #camera-grid {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    align-content: start;
+  }
+
+  /* Compact panel header */
+  #grid-panel .panel-header { flex-wrap: wrap; gap: 6px; padding: 6px 10px; }
+  .refresh-controls { margin-left: 0; }
+
+  /* Larger tap targets */
+  .btn-ghost  { padding: 6px 10px; font-size: 11px; }
+  .btn-region { padding: 8px 4px; }
+
+  /* Modal: full-screen on mobile */
+  #modal {
+    width: 100vw !important;
+    max-height: 100vh !important;
+    border-radius: 0 !important;
+    border-left: none !important;
+    border-right: none !important;
+  }
+  #modal-img { max-height: calc(100vh - 90px); }
 }
 
 /* ── corner brackets on camera cells ── */

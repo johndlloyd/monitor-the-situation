@@ -39,6 +39,7 @@ async function init() {
   initMap();
   initResizer();
   bindControls();
+  if (window.innerWidth <= 600) state.gridSize = 2;
   await loadCameras();
   startRefreshCycle();
   // startPresence();
@@ -560,6 +561,17 @@ function refreshAllVisible() {
 // ── Controls ───────────────────────────────────
 function bindControls() {
 
+
+  // Mobile map/sidebar toggle
+  const mapToggleBtn = document.getElementById('btn-map-toggle');
+  if (mapToggleBtn) {
+    mapToggleBtn.addEventListener('click', () => {
+      const sidebar = document.getElementById('sidebar');
+      sidebar.classList.toggle('mobile-open');
+      mapToggleBtn.classList.toggle('active');
+      if (state.map) setTimeout(() => state.map.invalidateSize(), 50);
+    });
+  }
 
   // Region buttons
   document.querySelectorAll('.btn-region').forEach(btn => {
