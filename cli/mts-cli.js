@@ -442,15 +442,15 @@ function cmdServe(args) {
       return;
     }
 
-    // Camera name aggregation endpoint — tries multiple UDOT list IDs in parallel
+    // Camera name aggregation endpoint
     if (pathname === '/api/camnames') {
       serveCamNames(res);
       return;
     }
 
-    // Proxy UDOT API
-    if (pathname.startsWith('/proxy/')) {
-      const targetPath = pathname.replace('/proxy', '');
+    // Proxy UDOT API — handles both /api/proxy/* and legacy /proxy/*
+    if (pathname.startsWith('/api/proxy/') || pathname.startsWith('/proxy/')) {
+      const targetPath = pathname.replace(/^\/(api\/)?proxy/, '');
       const queryStr   = parsed.search || '';  // WHATWG URL .search includes '?'
       const options    = {
         hostname: 'www.udottraffic.utah.gov',

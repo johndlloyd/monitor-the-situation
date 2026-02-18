@@ -1,0 +1,8 @@
+{
+  "name": "monitor-the-situation",
+  "functions": {
+    "api/**/*.js": {
+      "maxDuration": 30
+    }
+  }
+}

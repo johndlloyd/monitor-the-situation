@@ -3,10 +3,8 @@
    UDOT Traffic Camera Monitor
    ═══════════════════════════════════════════════ */
 
-// Auto-detect proxy mode: if served from localhost, use the local proxy
-const IS_LOCAL  = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
-const UDOT_BASE = IS_LOCAL ? '' : 'https://www.udottraffic.utah.gov';
-const PROXY_PFX = IS_LOCAL ? '/proxy' : '';
+// Always route through the server-side proxy (resolves CORS on UDOT API)
+const PROXY_PFX = '/api/proxy';
 const IMG_BASE  = `${PROXY_PFX}/map/Cctv`;
 
 // Default home: Temple Square, SLC
@@ -178,9 +176,7 @@ async function enrichCameraNames(cameras) {
     // When running locally: use the aggregated /api/camnames endpoint which
     // tries multiple UDOT list IDs and alternate endpoints server-side.
     // When remote (no proxy): fall back to a single GetUserCameras call.
-    const url = IS_LOCAL
-      ? '/api/camnames'
-      : `${UDOT_BASE}/Camera/GetUserCameras?listId=0`;
+    const url = '/api/camnames';
 
     const r = await fetch(url, { headers: { 'Accept': 'application/json' } });
     if (!r.ok) return;
