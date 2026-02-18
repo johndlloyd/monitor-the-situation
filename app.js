@@ -61,22 +61,28 @@ function startClock() {
 // ── Sidebar Resizer ────────────────────────────
 function initResizer() {
   // Map height drag — bottom-right corner handle
-  const mapResizer  = document.getElementById('map-resizer');
+  const sidebar      = document.getElementById('sidebar');
+  const mapResizer   = document.getElementById('map-resizer');
   const mapContainer = document.getElementById('map-container');
 
   mapResizer.addEventListener('mousedown', e => {
     e.preventDefault();
     e.stopPropagation();
+    const startX      = e.clientX;
     const startY      = e.clientY;
     const startHeight = mapContainer.offsetHeight;
+    const startWidth  = sidebar.offsetWidth;
 
     mapResizer.classList.add('dragging');
-    document.body.style.cursor     = 'ns-resize';
+    document.body.style.cursor     = 'nwse-resize';
     document.body.style.userSelect = 'none';
 
     function onMove(e) {
-      const h = Math.max(80, Math.min(window.innerHeight * 0.75, startHeight + e.clientY - startY));
+      const h = Math.max(80,  Math.min(window.innerHeight * 0.75, startHeight + e.clientY - startY));
+      const w = Math.max(160, Math.min(640,                        startWidth  + e.clientX - startX));
       mapContainer.style.height = h + 'px';
+      sidebar.style.width = w + 'px';
+      sidebar.style.flex  = `0 0 ${w}px`;
       if (state.map) state.map.invalidateSize();
     }
     function onUp() {
