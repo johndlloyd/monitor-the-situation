@@ -646,11 +646,25 @@ input[type="range"] {
   max-height: calc(100vh - 88px);
 }
 
-/* Fullscreen button — always visible, highlights when active */
-#btn-fullscreen { font-size: 14px; padding: 2px 7px; }
-#btn-fullscreen.active {
-  border-color: var(--accent3);
+/* Fullscreen footer button — prominent, orange-accented */
+.btn-fullscreen-footer {
+  margin-left: auto;          /* push to the far right of the footer */
+  background: transparent;
+  border: 1.5px solid var(--accent3);
   color: var(--accent3);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  padding: 5px 14px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all .12s;
+}
+.btn-fullscreen-footer:hover,
+.btn-fullscreen-footer.active {
+  background: var(--accent3);
+  color: #fff;
 }
 
 /* Swipe hint shown briefly when modal opens on touch devices */
