@@ -7,8 +7,8 @@
 // which resolves the dynamic MDT image URL and returns a 302 redirect.
 const IMG_API = '/api/mdt-image';
 
-// Default home: Helena, MT (state capital, central location)
-const HOME = { lat: 46.5958, lng: -112.0270, zoom: 8, count: 25 };
+// Default home: Missoula, MT (western MT hub, near Snowbowl + ski corridor)
+const HOME = { lat: 46.8721, lng: -113.9940, zoom: 10 };
 
 // ── Static ski resort / scenic cameras ─────────
 // Direct JPEG URLs — no proxy needed for <img> tags.
@@ -32,11 +32,12 @@ const STATIC_CAMERAS = [
 
 // ── State ──────────────────────────────────────
 const state = {
-  cameras:      [],   // all cameras from MDT
+  cameras:      [],   // all cameras from MDT + static ski
   filtered:     [],   // after filters applied
   map:          null,
   markers:      [],
-  useDefault:       true,  // show cameras closest to Helena until user navigates
+  useDefault:       true,  // show ski cams + nearest MDT to Missoula until user navigates
+  skiOnly:          false, // show only ski resort cameras
   programmaticMove: false, // suppress moveend during setView calls we initiated
   fitAfterFilter:   false, // fit map bounds to grid results on next renderGrid call
   gridSize:         5,     // N in the current N×N display
@@ -142,6 +143,7 @@ function onMapChange() {
   }
   if (state.cameras.length) {
     state.useDefault = false;
+    state.skiOnly    = false;
     applyFilters();
   }
 }
@@ -290,28 +292,42 @@ function addMapMarkers(cameras) {
 
 function applyFilters() {
   state.gridSize = 5;
-  let cams = [...state.cameras];
+  const all = [...state.cameras];
 
-  if (state.useDefault) {
-    cams = [...cams].sort((a, b) =>
-      haversine(HOME.lat, HOME.lng, a.lat, a.lng) -
-      haversine(HOME.lat, HOME.lng, b.lat, b.lng)
-    );
-    state.filtered = cams;
-    renderGrid(cams);
+  // ── SKI ONLY mode ──────────────────────────────
+  if (state.skiOnly) {
+    const ski = all.filter(c => c.type === 'ski');
+    state.filtered = ski;
+    state.gridSize = Math.min(20, Math.ceil(Math.sqrt(ski.length)));
+    renderGrid(ski);
     updateStats();
     return;
   }
 
-  const bounds = state.map.getBounds();
-  if (bounds) {
-    cams = cams.filter(c =>
-      c.lat >= bounds.getSouth() &&
-      c.lat <= bounds.getNorth() &&
-      c.lng >= bounds.getWest() &&
-      c.lng <= bounds.getEast()
+  // ── DEFAULT mode: all ski cams + nearest MDT to Missoula ──
+  if (state.useDefault) {
+    const skiCams = all.filter(c => c.type === 'ski');
+    const mdtCams = all.filter(c => c.type !== 'ski').sort((a, b) =>
+      haversine(HOME.lat, HOME.lng, a.lat, a.lng) -
+      haversine(HOME.lat, HOME.lng, b.lat, b.lng)
     );
+    const combined = [...skiCams, ...mdtCams];
+    state.filtered = combined;
+    renderGrid(combined);
+    updateStats();
+    return;
   }
+
+  // ── VIEWPORT mode ──────────────────────────────
+  const bounds = state.map.getBounds();
+  let cams = bounds
+    ? all.filter(c =>
+        c.lat >= bounds.getSouth() &&
+        c.lat <= bounds.getNorth() &&
+        c.lng >= bounds.getWest() &&
+        c.lng <= bounds.getEast()
+      )
+    : all;
 
   state.filtered = cams;
   renderGrid(cams);
@@ -360,8 +376,10 @@ function renderGrid(cameras) {
   updateStats();
   syncMarkerVisibility();
 
-  if (state.useDefault || state.fitAfterFilter) {
+  if (state.fitAfterFilter) {
     state.fitAfterFilter = false;
+    fitToGrid(slice);
+  } else if (state.skiOnly) {
     fitToGrid(slice);
   }
 }
@@ -522,8 +540,22 @@ function bindControls() {
     ));
   }
 
+  // SKI CAMS quick-select
+  document.getElementById('btn-ski-cams').addEventListener('click', () => {
+    state.skiOnly    = true;
+    state.useDefault = false;
+    applyFilters();
+    const skiCams = state.cameras.filter(c => c.type === 'ski');
+    fitToGrid(skiCams);
+    if (window.innerWidth <= 600) setMobileView('feeds');
+  });
+
+  // Region buttons — clear ski-only mode before panning
   document.querySelectorAll('.btn-region').forEach(btn => {
+    if (btn.id === 'btn-ski-cams') return; // handled above
     btn.addEventListener('click', () => {
+      state.skiOnly    = false;
+      state.useDefault = false;
       const lat  = parseFloat(btn.dataset.lat);
       const lng  = parseFloat(btn.dataset.lng);
       const zoom = parseInt(btn.dataset.zoom);
@@ -593,6 +625,7 @@ function applyAutoLayout() {
 
 function resetFilters() {
   state.useDefault       = true;
+  state.skiOnly          = false;
   state.programmaticMove = true;
   state.gridSize         = 5;
   state.map.setView([HOME.lat, HOME.lng], HOME.zoom, { animate: true });
