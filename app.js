@@ -10,6 +10,19 @@ const IMG_API = '/api/mdt-image';
 // Default home: Helena, MT (state capital, central location)
 const HOME = { lat: 46.5958, lng: -112.0270, zoom: 8, count: 25 };
 
+// ── Static ski resort / scenic cameras ─────────
+// Direct JPEG URLs — no proxy needed for <img> tags.
+const STATIC_CAMERAS = [
+  // Whitefish Mountain Resort
+  { id: 'ski-whitefish-base',  lat: 48.4925, lng: -114.3561, location: 'Whitefish — Base Lodge',     type: 'ski', imgUrl: 'https://skiwhitefish.com/inbound/cams/newbaselodge.jpg' },
+  { id: 'ski-whitefish-chair', lat: 48.4925, lng: -114.3561, location: 'Whitefish — Chair 1/2/6',    type: 'ski', imgUrl: 'https://skiwhitefish.com/inbound/cams/hellroaring_chalet.jpg' },
+  { id: 'ski-whitefish-storm', lat: 48.4925, lng: -114.3561, location: 'Whitefish — Storm Cam',      type: 'ski', imgUrl: 'https://skiwhitefish.com/inbound/cams/2425_StumpyCam.jpg' },
+  // Showdown Montana
+  { id: 'ski-showdown-stake',   lat: 46.8695, lng: -110.9003, location: 'Showdown MT — Snow Stake',  type: 'ski', imgUrl: 'https://webcams.opensnow.com/current/4008.jpg' },
+  { id: 'ski-showdown-payload', lat: 46.8695, lng: -110.9003, location: 'Showdown MT — Payload Run', type: 'ski', imgUrl: 'https://webcams.opensnow.com/current/247.jpg' },
+  { id: 'ski-showdown-top',     lat: 46.8695, lng: -110.9003, location: 'Showdown MT — Top Rock',    type: 'ski', imgUrl: 'https://webcams.opensnow.com/current/249.jpg' },
+];
+
 // ── State ──────────────────────────────────────
 const state = {
   cameras:      [],   // all cameras from MDT
@@ -160,6 +173,9 @@ async function loadCameras(attempt) {
       imgUrl: `${IMG_API}?id=${encodeURIComponent(c.id)}`,
     }));
 
+    // Merge in static ski/scenic cameras
+    cameras = cameras.concat(STATIC_CAMERAS);
+
     setStatus(`ESTABLISHING ${cameras.length} FEEDS...`, 70);
     state.cameras = cameras;
 
@@ -197,6 +213,19 @@ const camIconNormal = () => L.divIcon({
   iconSize: [11, 11], iconAnchor: [5, 5],
 });
 
+// Ski resort marker — blue/white snowflake crosshair
+const skiIconNormal = () => L.divIcon({
+  className: 'cam-marker',
+  html: `<svg width="11" height="11" viewBox="0 0 11 11" xmlns="http://www.w3.org/2000/svg" style="display:block;overflow:visible">
+    <line x1="5.5" y1="0" x2="5.5" y2="4"   stroke="#4fc3f7" stroke-width="1.5"/>
+    <line x1="5.5" y1="7" x2="5.5" y2="11"  stroke="#4fc3f7" stroke-width="1.5"/>
+    <line x1="0"   y1="5.5" x2="4"   y2="5.5" stroke="#4fc3f7" stroke-width="1.5"/>
+    <line x1="7"   y1="5.5" x2="11"  y2="5.5" stroke="#4fc3f7" stroke-width="1.5"/>
+    <rect x="3.5" y="3.5" width="4" height="4" fill="#4fc3f7" fill-opacity="0.9"/>
+  </svg>`,
+  iconSize: [11, 11], iconAnchor: [5, 5],
+});
+
 const camIconHot = () => L.divIcon({
   className: '',
   html: `<svg width="22" height="22" viewBox="0 0 22 22" xmlns="http://www.w3.org/2000/svg" style="display:block;overflow:visible;filter:drop-shadow(0 0 5px #ff6b35) drop-shadow(0 0 10px #ff3300)">
@@ -220,7 +249,7 @@ function highlightMarker(camId) {
 function unhighlightMarker(camId) {
   const m = state.markers.find(m => String(m.camId) === String(camId));
   if (!m) return;
-  m.setIcon(camIconNormal());
+  m.setIcon(m.isSki ? skiIconNormal() : camIconNormal());
   m.setZIndexOffset(0);
 }
 
@@ -230,7 +259,8 @@ function addMapMarkers(cameras) {
 
   cameras.forEach(cam => {
     if (!cam.lat || !cam.lng) return;
-    const m = L.marker([cam.lat, cam.lng], { icon: camIconNormal() })
+    const isSki = cam.type === 'ski';
+    const m = L.marker([cam.lat, cam.lng], { icon: isSki ? skiIconNormal() : camIconNormal() })
       .addTo(state.map)
       .on('click', () => openModal(cam))
       .on('mouseover', () => {
@@ -244,6 +274,7 @@ function addMapMarkers(cameras) {
         if (cell) cell.classList.remove('map-hover');
       });
     m.camId = cam.id;
+    m.isSki = isSki;
     state.markers.push(m);
   });
 }
@@ -342,7 +373,7 @@ function makeCamCell(cam, idx) {
 
   // Append _t param so the mdt-image proxy isn't stuck on a cached 302
   cell.innerHTML = `
-    <img class="cam-img" src="${cam.imgUrl}&_t=${cacheBreak}"
+    <img class="cam-img" src="${cam.imgUrl}${cam.imgUrl.includes('?') ? '&' : '?'}_t=${cacheBreak}"
          loading="lazy"
          alt="${name}"
          draggable="false">
@@ -389,7 +420,7 @@ function openModal(cam) {
   coords.textContent = cam.lat ? `${cam.lat.toFixed(5)}, ${cam.lng.toFixed(5)}` : '';
 
   showModalSpinner();
-  img.src = `${cam.imgUrl}&_t=${Date.now()}`;
+  img.src = `${cam.imgUrl}${cam.imgUrl.includes('?') ? '&' : '?'}_t=${Date.now()}`;
   img.onload  = () => { hideModalSpinner(); ts.textContent = new Date().toLocaleTimeString(); };
   img.onerror = () => { hideModalSpinner(); ts.textContent = 'FEED UNAVAILABLE'; };
 
@@ -420,7 +451,8 @@ window.refreshModal = function() {
   const img = document.getElementById('modal-img');
   const ts  = document.getElementById('modal-timestamp');
   showModalSpinner();
-  img.src = `${state.modalCam.imgUrl}&_t=${Date.now()}`;
+  const mc = state.modalCam;
+  img.src = `${mc.imgUrl}${mc.imgUrl.includes('?') ? '&' : '?'}_t=${Date.now()}`;
   img.onload  = () => { hideModalSpinner(); ts.textContent = new Date().toLocaleTimeString(); };
   img.onerror = () => { hideModalSpinner(); ts.textContent = 'FEED UNAVAILABLE'; };
 };
@@ -465,7 +497,7 @@ function refreshAllVisible() {
     state.refreshCache[id] = now;
     const cam = state.cameras.find(c => String(c.id) === String(id));
     if (cam) {
-      img.src = `${cam.imgUrl}&_t=${now}`;
+      img.src = `${cam.imgUrl}${cam.imgUrl.includes('?') ? '&' : '?'}_t=${now}`;
     }
   });
 }
