@@ -1,22 +1,22 @@
 /* ═══════════════════════════════════════════════
-   MONITOR THE SITUATION — app.js
-   UDOT Traffic Camera Monitor
+   MONITOR THE SITUATION — app.js (Montana)
+   MDT RWIS Traffic Camera Monitor
    ═══════════════════════════════════════════════ */
 
-// Always route through the server-side proxy (resolves CORS on UDOT API)
-const PROXY_PFX = '/api/proxy';
-const IMG_BASE  = `${PROXY_PFX}/map/Cctv`;
+// Image requests route through the mdt-image serverless function,
+// which resolves the dynamic MDT image URL and returns a 302 redirect.
+const IMG_API = '/api/mdt-image';
 
-// Default home: Temple Square, SLC
-const HOME = { lat: 40.7705, lng: -111.8910, zoom: 14, count: 25 };
+// Default home: Helena, MT (state capital, central location)
+const HOME = { lat: 46.5958, lng: -112.0270, zoom: 8, count: 25 };
 
 // ── State ──────────────────────────────────────
 const state = {
-  cameras:      [],   // all cameras from UDOT
+  cameras:      [],   // all cameras from MDT
   filtered:     [],   // after filters applied
   map:          null,
   markers:      [],
-  useDefault:       true,  // show 25 closest to Temple Square until user navigates
+  useDefault:       true,  // show cameras closest to Helena until user navigates
   programmaticMove: false, // suppress moveend during setView calls we initiated
   fitAfterFilter:   false, // fit map bounds to grid results on next renderGrid call
   gridSize:         5,     // N in the current N×N display
@@ -41,7 +41,6 @@ async function init() {
   if (window.innerWidth <= 600) state.gridSize = 2;
   await loadCameras();
   startRefreshCycle();
-  // startPresence();
 }
 
 // ── Clock ──────────────────────────────────────
@@ -60,7 +59,6 @@ function startClock() {
 
 // ── Sidebar Resizer ────────────────────────────
 function initResizer() {
-  // Map height drag — bottom-right corner handle
   const sidebar      = document.getElementById('sidebar');
   const mapResizer   = document.getElementById('map-resizer');
   const mapContainer = document.getElementById('map-container');
@@ -106,24 +104,21 @@ function initMap() {
     zoomControl: true,
     attributionControl: false,
   });
-  state.programmaticMove = true; // suppress the initial moveend on load
+  state.programmaticMove = true;
 
-  // CartoDB Positron — pixel-crisp black labels on white.
-  // CSS invert() flips it: pure white roads/labels on dark background.
   L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
     maxZoom: 19,
     subdomains: 'abcd',
   }).addTo(map);
 
   state.map = map;
-
   map.on('moveend zoomend', onMapChange);
 }
 
 function onMapChange() {
   if (state.programmaticMove) {
     state.programmaticMove = false;
-    return; // ignore moveend fired by our own setView calls
+    return;
   }
   if (state.cameras.length) {
     state.useDefault = false;
@@ -142,60 +137,48 @@ async function loadCameras(attempt) {
   );
 
   try {
-    const r1   = await fetch(`${PROXY_PFX}/map/mapIcons/Cameras`, {
-      headers: { 'Accept': 'application/json' }
-    });
-    const text = await r1.text();
+    const r    = await fetch('/api/mdt', { headers: { 'Accept': 'application/json' } });
+    const text = await r.text();
 
-    let iconData;
-    try { iconData = JSON.parse(text); }
-    catch (_) { throw new Error('UDOT returned non-JSON: ' + text.slice(0, 60)); }
+    let cameras;
+    try { cameras = JSON.parse(text); }
+    catch (_) { throw new Error('MDT API returned non-JSON: ' + text.slice(0, 60)); }
 
-    if (iconData.error) throw new Error(iconData.error);
+    if (cameras.error) throw new Error(cameras.error);
+    if (!Array.isArray(cameras)) throw new Error('Unexpected MDT API response shape');
 
-    const iconItems = iconData.item2 || [];
-
-    // Empty item2 on a valid JSON response — retry once more before giving up
-    if (!iconItems.length && attempt < MAX) {
-      await new Promise(r => setTimeout(r, 1500 * attempt));
+    if (!cameras.length && attempt < MAX) {
+      await new Promise(res => setTimeout(res, 1500 * attempt));
       return loadCameras(attempt + 1);
     }
 
-    setStatus(`PARSING ${iconItems.length} CAMERA POSITIONS...`, 40);
+    setStatus(`PARSING ${cameras.length} CAMERA POSITIONS...`, 40);
 
-    // Convert to our format (fast path — just positions)
-    const cameras = iconItems.map(item => ({
-      id:       item.itemId,
-      lat:      item.location[0],
-      lng:      item.location[1],
-      location: item.title || `CAM-${item.itemId}`,
-      roadway:  '',
-      imgUrl:   `${IMG_BASE}/${item.itemId}`,
+    // Attach the image URL — routes through our mdt-image function
+    cameras = cameras.map(c => ({
+      ...c,
+      imgUrl: `${IMG_API}?id=${encodeURIComponent(c.id)}`,
     }));
 
     setStatus(`ESTABLISHING ${cameras.length} FEEDS...`, 70);
     state.cameras = cameras;
 
-    // Add map markers
     addMapMarkers(cameras);
-
-    // Initial render: apply viewport filter immediately
-    // (avoids loading 2000+ images at once)
     state.filtered = [...cameras];
     applyFilters();
 
     setStatus('CAMERA NETWORK ONLINE', 100);
     setTimeout(hideLoading, 400);
-
     updateStats();
+
   } catch (err) {
     console.error(`[MTS] Attempt ${attempt} failed:`, err.message);
     if (attempt < MAX) {
       setStatus(`RETRYING... (${attempt + 1}/${MAX})`, 20);
-      await new Promise(r => setTimeout(r, 2000 * attempt));
+      await new Promise(res => setTimeout(res, 2000 * attempt));
       return loadCameras(attempt + 1);
     }
-    setStatus('ERROR: FAILED TO CONNECT TO UDOT', 100);
+    setStatus('ERROR: FAILED TO CONNECT TO MDT', 100);
     loadDemoFallback(err.message);
     setTimeout(hideLoading, 600);
   }
@@ -268,10 +251,9 @@ function addMapMarkers(cameras) {
 // ── Filter / Render ────────────────────────────
 
 function applyFilters() {
-  state.gridSize = 5; // every new filter resets to 5×5 default
+  state.gridSize = 5;
   let cams = [...state.cameras];
 
-  // Default view: 25 closest cameras to Temple Square
   if (state.useDefault) {
     cams = [...cams].sort((a, b) =>
       haversine(HOME.lat, HOME.lng, a.lat, a.lng) -
@@ -283,7 +265,6 @@ function applyFilters() {
     return;
   }
 
-  // Viewport filter
   const bounds = state.map.getBounds();
   if (bounds) {
     cams = cams.filter(c =>
@@ -316,8 +297,6 @@ function renderGrid(cameras) {
   const grid  = document.getElementById('camera-grid');
   const noRes = document.getElementById('no-results');
 
-  // Reset all marker icons before rebuilding — mouseleave won't fire on
-  // destroyed cells, so markers can get stuck in the hot state otherwise.
   state.markers.forEach(m => { m.setIcon(camIconNormal()); m.setZIndexOffset(0); });
 
   if (!cameras.length) {
@@ -343,8 +322,6 @@ function renderGrid(cameras) {
   updateStats();
   syncMarkerVisibility();
 
-  // Fit map to exactly the cameras shown in the grid when in default mode,
-  // or whenever a region / filter change produces a new set of results
   if (state.useDefault || state.fitAfterFilter) {
     state.fitAfterFilter = false;
     fitToGrid(slice);
@@ -363,8 +340,9 @@ function makeCamCell(cam, idx) {
     ? cam.location
     : `CAM-${cam.id}`;
 
+  // Append _t param so the mdt-image proxy isn't stuck on a cached 302
   cell.innerHTML = `
-    <img class="cam-img" src="${cam.imgUrl}?_t=${cacheBreak}"
+    <img class="cam-img" src="${cam.imgUrl}&_t=${cacheBreak}"
          loading="lazy"
          alt="${name}"
          draggable="false">
@@ -387,7 +365,6 @@ function makeCamCell(cam, idx) {
   };
 
   cell.addEventListener('click', () => openModal(cam));
-
   return cell;
 }
 
@@ -412,14 +389,13 @@ function openModal(cam) {
   coords.textContent = cam.lat ? `${cam.lat.toFixed(5)}, ${cam.lng.toFixed(5)}` : '';
 
   showModalSpinner();
-  img.src = `${cam.imgUrl}?_t=${Date.now()}`;
+  img.src = `${cam.imgUrl}&_t=${Date.now()}`;
   img.onload  = () => { hideModalSpinner(); ts.textContent = new Date().toLocaleTimeString(); };
   img.onerror = () => { hideModalSpinner(); ts.textContent = 'FEED UNAVAILABLE'; };
 
   overlay.style.display = 'flex';
   document.addEventListener('keydown', onModalKey);
 
-  // Brief swipe hint on touch devices
   if ('ontouchstart' in window) {
     const wrap = document.getElementById('modal-img-wrap');
     const old  = wrap.querySelector('.swipe-hint');
@@ -444,7 +420,7 @@ window.refreshModal = function() {
   const img = document.getElementById('modal-img');
   const ts  = document.getElementById('modal-timestamp');
   showModalSpinner();
-  img.src = `${state.modalCam.imgUrl}?_t=${Date.now()}`;
+  img.src = `${state.modalCam.imgUrl}&_t=${Date.now()}`;
   img.onload  = () => { hideModalSpinner(); ts.textContent = new Date().toLocaleTimeString(); };
   img.onerror = () => { hideModalSpinner(); ts.textContent = 'FEED UNAVAILABLE'; };
 };
@@ -469,13 +445,8 @@ function onModalKey(e) {
   if (e.key === 'r')           refreshModal();
 }
 
-function showModalSpinner() {
-  const s = document.getElementById('modal-spinner');
-  s.style.display = 'flex';
-}
-function hideModalSpinner() {
-  document.getElementById('modal-spinner').style.display = 'none';
-}
+function showModalSpinner() { document.getElementById('modal-spinner').style.display = 'flex'; }
+function hideModalSpinner() { document.getElementById('modal-spinner').style.display = 'none'; }
 
 // ── Refresh Cycle ──────────────────────────────
 function startRefreshCycle() {
@@ -494,19 +465,15 @@ function refreshAllVisible() {
     state.refreshCache[id] = now;
     const cam = state.cameras.find(c => String(c.id) === String(id));
     if (cam) {
-      img.src = `${cam.imgUrl}?_t=${now}`;
+      img.src = `${cam.imgUrl}&_t=${now}`;
     }
   });
 }
 
 // ── Controls ───────────────────────────────────
 function bindControls() {
-
-
-  // Mobile view toggle: MAP ↔ FEEDS
   const mapToggleBtn = document.getElementById('btn-map-toggle');
   if (mapToggleBtn) {
-    // Set initial label: we start on the map, so button leads to feeds
     if (window.innerWidth <= 600) {
       mapToggleBtn.textContent = '⊞ FEEDS';
       mapToggleBtn.title = 'View camera feeds';
@@ -516,7 +483,6 @@ function bindControls() {
     ));
   }
 
-  // Region buttons — on mobile, auto-switch to feeds after selecting a city
   document.querySelectorAll('.btn-region').forEach(btn => {
     btn.addEventListener('click', () => {
       const lat  = parseFloat(btn.dataset.lat);
@@ -527,7 +493,6 @@ function bindControls() {
     });
   });
 
-  // More / Fewer cameras
   document.getElementById('btn-more').addEventListener('click', () => {
     state.gridSize = Math.min(20, state.gridSize + 1);
     renderGrid(state.filtered);
@@ -537,7 +502,6 @@ function bindControls() {
     renderGrid(state.filtered);
   });
 
-  // View All — set grid size to fit every filtered camera
   document.getElementById('btn-view-all').addEventListener('click', () => {
     const total = state.filtered.length;
     if (!total) return;
@@ -545,19 +509,16 @@ function bindControls() {
     renderGrid(state.filtered);
   });
 
-  // Re-apply layout on panel resize (keeps cols correct, CSS handles cell size)
   new ResizeObserver(() => {
     if (state.filtered.length) applyAutoLayout();
   }).observe(document.getElementById('grid-panel'));
 
-  // Refresh rate
   document.getElementById('refresh-rate').addEventListener('change', e => {
     state.refreshRate = parseInt(e.target.value);
     startRefreshCycle();
   });
   document.getElementById('btn-refresh-now').addEventListener('click', refreshAllVisible);
 
-  // Modal nav
   document.getElementById('btn-modal-prev').addEventListener('click', () => navModal(-1));
   document.getElementById('btn-modal-next').addEventListener('click', () => navModal(1));
   document.getElementById('btn-fullscreen').addEventListener('click', toggleFullscreen);
@@ -568,7 +529,6 @@ function bindControls() {
     if (!document.webkitFullscreenElement && _fsActive) exitFsMode();
   });
 
-  // Keyboard global shortcuts
   document.addEventListener('keydown', e => {
     if (document.getElementById('modal-overlay').style.display !== 'none') return;
     if (e.key === 'Escape') { resetFilters(); }
@@ -576,9 +536,7 @@ function bindControls() {
   });
 }
 
-
 // ── Auto Layout ────────────────────────────────
-// Columns = state.gridSize (N×N square). CSS aspect-ratio handles height.
 function applyAutoLayout() {
   const n    = state.gridSize;
   const grid = document.getElementById('camera-grid');
@@ -616,13 +574,13 @@ function hideLoading() {
 }
 
 function updateStats() {
-  document.getElementById('stat-total').textContent    = state.cameras.length;
-  document.getElementById('stat-active').textContent   = state.filtered.length;
+  document.getElementById('stat-total').textContent  = state.cameras.length;
+  document.getElementById('stat-active').textContent = state.filtered.length;
 }
 
 // ── Helpers ────────────────────────────────────
 function haversine(lat1, lng1, lat2, lng2) {
-  const R = 6371000; // Earth radius in meters
+  const R = 6371000;
   const φ1 = lat1 * Math.PI / 180;
   const φ2 = lat2 * Math.PI / 180;
   const Δφ = (lat2 - lat1) * Math.PI / 180;
@@ -631,32 +589,9 @@ function haversine(lat1, lng1, lat2, lng2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-// ── Presence counter ───────────────────────────
-function startPresence() {
-  const sessionId = Math.random().toString(36).slice(2) + Date.now().toString(36);
-  const el = document.getElementById('presence-count');
-
-  async function heartbeat() {
-    try {
-      const r = await fetch('/api/presence', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId }),
-      });
-      const { count } = await r.json();
-      if (el) el.textContent = count;
-    } catch (_) {}
-  }
-
-  heartbeat();
-  setInterval(heartbeat, 30000);
-}
-
 // ── Dark mode ──────────────────────────────────
 function initDarkMode() {
-  // Restore saved preference before first paint
   if (localStorage.getItem('mts-dark') === '1') applyDark(true);
-
   document.getElementById('btn-dark-toggle')
     .addEventListener('click', () => applyDark(!document.body.classList.contains('dark')));
 }
@@ -664,12 +599,10 @@ function initDarkMode() {
 function applyDark(on) {
   document.body.classList.toggle('dark', on);
   localStorage.setItem('mts-dark', on ? '1' : '0');
-  // Leaflet needs a tile refresh after the CSS filter changes
   if (state.map) state.map.invalidateSize();
 }
 
 // ── Mobile two-view layout ─────────────────────
-// On mobile: MAP view (sidebar) ↔ FEEDS view (grid-panel)
 function setMobileView(view) {
   if (window.innerWidth > 600) return;
   const sidebar   = document.getElementById('sidebar');
@@ -697,7 +630,6 @@ let _fsActive    = false;
 function initModalTouch() {
   const wrap = document.getElementById('modal-img-wrap');
 
-  // Swipe left/right to navigate cameras
   wrap.addEventListener('touchstart', e => {
     _touchStartX = e.touches[0].clientX;
     _touchStartY = e.touches[0].clientY;
@@ -708,17 +640,14 @@ function initModalTouch() {
     const dx = e.changedTouches[0].clientX - _touchStartX;
     const dy = e.changedTouches[0].clientY - _touchStartY;
     const dt = Date.now() - _touchStartT;
-    // Quick, primarily horizontal gesture
     if (dt < 400 && Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) {
-      if (dx < 0) navModal(1);   // swipe left  → next
-      else        navModal(-1);  // swipe right → prev
+      if (dx < 0) navModal(1);
+      else        navModal(-1);
     }
   }, { passive: true });
 }
 
-function toggleFullscreen() {
-  _fsActive ? exitFsMode() : enterFsMode();
-}
+function toggleFullscreen() { _fsActive ? exitFsMode() : enterFsMode(); }
 
 function enterFsMode() {
   const overlay = document.getElementById('modal-overlay');
@@ -727,9 +656,7 @@ function enterFsMode() {
             || overlay.mozRequestFullScreen;
 
   if (req) {
-    req.call(overlay)
-      .then(lockLandscape)
-      .catch(() => enableCssFs(overlay));
+    req.call(overlay).then(lockLandscape).catch(() => enableCssFs(overlay));
   } else {
     enableCssFs(overlay);
   }
@@ -770,7 +697,7 @@ function unlockOrientation() {
   } catch (_) {}
 }
 
-// ── Demo fallback (if CORS blocks) ────────────
+// ── Demo fallback ──────────────────────────────
 function loadDemoFallback(errMsg) {
   const grid  = document.getElementById('camera-grid');
   const noRes = document.getElementById('no-results');
@@ -798,7 +725,7 @@ function loadDemoFallback(errMsg) {
     `;
   } else {
     note.innerHTML = `
-      <div style="color:var(--accent);font-size:14px;margin-bottom:12px">// FAILED TO CONNECT TO UDOT API</div>
+      <div style="color:var(--accent);font-size:14px;margin-bottom:12px">// FAILED TO CONNECT TO MDT API</div>
       <div>Could not load camera data. The service may be temporarily unavailable.</div>
       <div style="margin-top:12px">
         <button onclick="location.reload()" style="
