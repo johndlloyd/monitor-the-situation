@@ -16,9 +16,6 @@ const state = {
   filtered:     [],   // after filters applied
   map:          null,
   markers:      [],
-  circle:       null,
-  circleCenter: null,
-  circleRadius:  10,  // miles
   useDefault:       true,  // show 25 closest to Temple Square until user navigates
   programmaticMove: false, // suppress moveend during setView calls we initiated
   fitAfterFilter:   false, // fit map bounds to grid results on next renderGrid call
@@ -121,7 +118,6 @@ function initMap() {
   state.map = map;
 
   map.on('moveend zoomend', onMapChange);
-  map.on('click', onMapClick);
 }
 
 function onMapChange() {
@@ -133,34 +129,6 @@ function onMapChange() {
     state.useDefault = false;
     applyFilters();
   }
-}
-
-function onMapClick(e) {
-}
-
-function placeCircle(lat, lng) {
-  const radiusMiles = state.circleRadius;
-  const radiusMeters = radiusMiles * 1609.34;
-
-  if (state.circle) state.circle.remove();
-
-  state.circleCenter = { lat, lng };
-  state.circle = L.circle([lat, lng], {
-    radius: radiusMeters,
-    color: '#000000',
-    fillColor: '#000000',
-    fillOpacity: 0.08,
-    weight: 1.5,
-  }).addTo(state.map);
-
-  state.map.fitBounds(state.circle.getBounds(), { padding: [20, 20] });
-  applyFilters();
-}
-
-function clearCircle() {
-  if (state.circle) { state.circle.remove(); state.circle = null; }
-  state.circleCenter = null;
-  applyFilters();
 }
 
 // ── Load Cameras ───────────────────────────────
@@ -205,9 +173,6 @@ async function loadCameras(attempt) {
       imgUrl:   `${IMG_BASE}/${item.itemId}`,
     }));
 
-    // Try to enrich with named data (secondary fetch, non-blocking)
-    enrichCameraNames(cameras).catch(() => {});
-
     setStatus(`ESTABLISHING ${cameras.length} FEEDS...`, 70);
     state.cameras = cameras;
 
@@ -234,65 +199,6 @@ async function loadCameras(attempt) {
     loadDemoFallback(err.message);
     setTimeout(hideLoading, 600);
   }
-}
-
-// Cache for enriched camera names
-const nameCache = {};
-
-async function enrichCameraNames(cameras) {
-  try {
-    // When running locally: use the aggregated /api/camnames endpoint which
-    // tries multiple UDOT list IDs and alternate endpoints server-side.
-    // When remote (no proxy): fall back to a single GetUserCameras call.
-    const url = '/api/camnames';
-
-    const r = await fetch(url, { headers: { 'Accept': 'application/json' } });
-    if (!r.ok) return;
-    const json = await r.json();
-
-    // /api/camnames returns { id: {location, roadway} } already merged
-    // GetUserCameras returns an array — normalise both shapes
-    if (Array.isArray(json) || Array.isArray(json.data)) {
-      const data = Array.isArray(json) ? json : json.data;
-      data.forEach(cam => {
-        const id = String(cam.id || '');
-        if (id) nameCache[id] = { location: cam.location || '', roadway: cam.roadway || '' };
-      });
-    } else {
-      // Object map from /api/camnames
-      Object.entries(json).forEach(([id, info]) => {
-        nameCache[id] = info;
-      });
-    }
-
-    // Apply to all cameras where we have data
-    cameras.forEach(cam => {
-      const info = nameCache[String(cam.id)];
-      if (info && info.location) {
-        cam.location = info.location;
-        cam.roadway  = info.roadway || cam.roadway;
-      }
-    });
-
-    // Refresh visible labels and tooltips in the grid
-    document.querySelectorAll('.cam-cell').forEach(el => {
-      const id  = el.dataset.id;
-      const cam = cameras.find(c => String(c.id) === String(id));
-      if (!cam) return;
-      const name = cam.location && !cam.location.startsWith('CAM-') ? cam.location : `CAM-${id}`;
-      const lbl = el.querySelector('.cam-label');
-      if (lbl) lbl.textContent = name;
-    });
-  } catch (_) {}
-}
-
-// Fetch a single camera's description from image URL header or tooltip
-async function fetchCameraName(camId) {
-  if (nameCache[String(camId)]) return nameCache[String(camId)];
-  // The image description is embedded in HTTP headers or alt text
-  // Use the camera image URL and parse any available info
-  // For now return null (name stays as CAM-id)
-  return null;
 }
 
 // Icons defined at module scope so highlight/unhighlight can reference them
@@ -366,7 +272,7 @@ function applyFilters() {
   let cams = [...state.cameras];
 
   // Default view: 25 closest cameras to Temple Square
-  if (state.useDefault && !state.circleCenter) {
+  if (state.useDefault) {
     cams = [...cams].sort((a, b) =>
       haversine(HOME.lat, HOME.lng, a.lat, a.lng) -
       haversine(HOME.lat, HOME.lng, b.lat, b.lng)
@@ -377,22 +283,15 @@ function applyFilters() {
     return;
   }
 
-  // Circle filter (always applies when active)
-  if (state.circleCenter && state.circle) {
-    const { lat, lng } = state.circleCenter;
-    const r = state.circleRadius * 1609.34; // meters
-    cams = cams.filter(c => haversine(lat, lng, c.lat, c.lng) <= r);
-  } else {
-    // Viewport filter
-    const bounds = state.map.getBounds();
-    if (bounds) {
-      cams = cams.filter(c =>
-        c.lat >= bounds.getSouth() &&
-        c.lat <= bounds.getNorth() &&
-        c.lng >= bounds.getWest() &&
-        c.lng <= bounds.getEast()
-      );
-    }
+  // Viewport filter
+  const bounds = state.map.getBounds();
+  if (bounds) {
+    cams = cams.filter(c =>
+      c.lat >= bounds.getSouth() &&
+      c.lat <= bounds.getNorth() &&
+      c.lng >= bounds.getWest() &&
+      c.lng <= bounds.getEast()
+    );
   }
 
   state.filtered = cams;
@@ -416,6 +315,10 @@ function fitToGrid(cams) {
 function renderGrid(cameras) {
   const grid  = document.getElementById('camera-grid');
   const noRes = document.getElementById('no-results');
+
+  // Reset all marker icons before rebuilding — mouseleave won't fire on
+  // destroyed cells, so markers can get stuck in the hot state otherwise.
+  state.markers.forEach(m => { m.setIcon(camIconNormal()); m.setZIndexOffset(0); });
 
   if (!cameras.length) {
     grid.innerHTML = '';
@@ -684,8 +587,6 @@ function applyAutoLayout() {
 }
 
 function resetFilters() {
-  if (state.circle) { state.circle.remove(); state.circle = null; }
-  state.circleCenter = null;
   state.useDefault       = true;
   state.programmaticMove = true;
   state.gridSize         = 5;
