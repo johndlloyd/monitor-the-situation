@@ -21,6 +21,13 @@ const STATIC_CAMERAS = [
   { id: 'ski-showdown-stake',   lat: 46.8695, lng: -110.9003, location: 'Showdown MT — Snow Stake',  type: 'ski', imgUrl: 'https://webcams.opensnow.com/current/4008.jpg' },
   { id: 'ski-showdown-payload', lat: 46.8695, lng: -110.9003, location: 'Showdown MT — Payload Run', type: 'ski', imgUrl: 'https://webcams.opensnow.com/current/247.jpg' },
   { id: 'ski-showdown-top',     lat: 46.8695, lng: -110.9003, location: 'Showdown MT — Top Rock',    type: 'ski', imgUrl: 'https://webcams.opensnow.com/current/249.jpg' },
+  // Montana Snowbowl (Missoula)
+  { id: 'ski-snowbowl-base',    lat: 46.9528, lng: -113.9987, location: 'Montana Snowbowl — Base',   type: 'ski', imgUrl: 'https://g1.ipcamlive.com/player/snapshot.php?alias=690b67247173f' },
+  // Discovery Ski Area (Phillipsburg / Georgetown Lake)
+  { id: 'ski-discovery-top',    lat: 46.4025, lng: -113.5085, location: 'Discovery — Top Overview',  type: 'ski', imgUrl: 'https://webcam.skidiscovery.com/webcam-images/top-overview/top-overview/top-overview-webcam.jpg' },
+  { id: 'ski-discovery-od',     lat: 46.4025, lng: -113.5085, location: 'Discovery — OD Front',      type: 'ski', imgUrl: 'https://webcam.skidiscovery.com/webcam-images/od-front/od-front/od-front-webcam.jpg' },
+  { id: 'ski-discovery-base',   lat: 46.4025, lng: -113.5085, location: 'Discovery — Base Stake',    type: 'ski', imgUrl: 'https://webcam.skidiscovery.com/webcam-images/base-stake/base-stake/base-stake-webcam.jpg' },
+  { id: 'ski-discovery-topstk', lat: 46.4025, lng: -113.5085, location: 'Discovery — Top Stake',     type: 'ski', imgUrl: 'https://webcam.skidiscovery.com/webcam-images/top-stake/top-stake/top-stake-webcam.jpg' },
 ];
 
 // ── State ──────────────────────────────────────
