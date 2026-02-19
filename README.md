@@ -1,6 +1,6 @@
-# [MTS] — Monitor the Situation
+# [MTS] — Monitor the Situation (Montana)
 
-A command-center dashboard and CLI for monitoring UDOT traffic cameras across Utah.
+A command-center dashboard and CLI for monitoring MDT RWIS traffic cameras across Montana.
 
 ## Quick Start
 
@@ -11,21 +11,19 @@ node cli/mts-cli.js serve
 
 Then open http://localhost:8080
 
-> The web app requires the local proxy server to resolve CORS restrictions on the UDOT API.
+> The web app requires the local proxy server to resolve CORS restrictions on the MDT API.
 
 ---
 
 ## Web UI Features
 
-- Utah map (Leaflet / CartoDB Dark Matter) with live camera pins
+- Montana map (Leaflet / CartoDB Dark Matter) with live camera pins
 - **Browse mode**: pan/zoom to filter cameras by viewport
-- **Circle mode**: click the map to place a monitoring radius (1–50 miles)
-- **Quick select**: SLC, Ogden, Provo, St. George, Logan, All Utah
-- **Route / text search** filters
+- **Quick select**: Missoula, Helena, Billings, Bozeman, Great Falls, Kalispell, and more
 - **Column slider**: 1–20 columns (up to 20×20 = 400 feeds)
 - **Pop-out modal**: click any camera; `←` `→` arrow keys to navigate, `ESC` to close
 - **Auto-refresh**: 30s / 60s / 2m / 5m intervals
-- **Keyboard shortcuts**: `F` focus search · `R` refresh all · `ESC` reset
+- **Keyboard shortcuts**: `R` refresh all · `ESC` reset
 
 ---
 
@@ -33,73 +31,84 @@ Then open http://localhost:8080
 
 ```bash
 # List cameras by area
-node cli/mts-cli.js cameras --area slc
-node cli/mts-cli.js cameras --area wasatch --limit 20
-node cli/mts-cli.js cameras --area slc --route I-15
+node cli/mts-cli.js cameras --area missoula
+node cli/mts-cli.js cameras --area billings --route I-90 --limit 20
+node cli/mts-cli.js cameras --area bozeman
 
 # By coordinates + radius
-node cli/mts-cli.js cameras --lat 40.76 --lng -111.89 --radius 5
+node cli/mts-cli.js cameras --lat 46.87 --lng -113.99 --radius 15
 
 # Visual weather assessment
-node cli/mts-cli.js weather --area slc
-node cli/mts-cli.js weather --area i80
+node cli/mts-cli.js weather --area missoula
+node cli/mts-cli.js weather --area bozeman
 
 # Show/open a specific camera
-node cli/mts-cli.js show 55982 --open
-node cli/mts-cli.js show 55982 --save cam.jpg
+node cli/mts-cli.js show 150000 --open
+node cli/mts-cli.js show 150000 --save cam.jpg
 
 # JSON output (for scripting/agents)
-node cli/mts-cli.js cameras --area provo --json
+node cli/mts-cli.js cameras --area helena --json
 
 # Natural language (agent mode)
-node cli/mts-cli.js ask "show me webcam weather on I-15 near Salt Lake"
-node cli/mts-cli.js ask "cameras near ogden"
+node cli/mts-cli.js ask "show me cameras on I-90 near Missoula"
+node cli/mts-cli.js ask "what are road conditions on Lookout Pass"
 ```
 
 ### Known Areas
 
-| Key       | Name              |
-|-----------|-------------------|
-| slc       | Salt Lake City    |
-| ogden     | Ogden             |
-| provo     | Provo/Orem        |
-| stgeorge  | St. George        |
-| logan     | Logan             |
-| moab      | Moab              |
-| parkcity  | Park City         |
-| i15       | I-15 Corridor     |
-| i80       | I-80 Corridor     |
-| i84       | I-84 Corridor     |
-| i70       | I-70 Corridor     |
-| wasatch   | Wasatch Front     |
-| utah      | All Utah          |
+| Key        | Name             |
+|------------|------------------|
+| missoula   | Missoula         |
+| helena     | Helena           |
+| butte      | Butte            |
+| kalispell  | Kalispell        |
+| billings   | Billings         |
+| bozeman    | Bozeman          |
+| greatfalls | Great Falls      |
+| havre      | Havre            |
+| lewistown  | Lewistown        |
+| milescity  | Miles City       |
+| glendive   | Glendive         |
+| wolfpoint  | Wolf Point       |
+| livingston | Livingston       |
+| i90        | I-90 Corridor    |
+| i15        | I-15 Corridor    |
+| i94        | I-94 Corridor    |
+| montana    | All Montana      |
 
 ---
 
-## openclaw Agent Integration
+## Self-Hosting on Vercel
 
-`cli/mts-openclaw-tool.js` exports a tool schema (Claude `tool_use` format) and executor for openclaw agents.
+1. Fork this repository on GitHub
+2. Import your fork in the Vercel dashboard
+3. Deploy — no build step required, Vercel serves static files automatically
+4. The `api/mdt.js` and `api/mdt-image.js` serverless functions handle MDT API proxying
 
-```javascript
-const { TOOL_SCHEMA, executeTool, formatCameraResult } = require('./cli/mts-openclaw-tool');
+The app runs entirely on Vercel's free hobby tier.
 
-const result = executeTool({ query_type: 'weather', area: 'slc' });
-console.log(formatCameraResult(result));
+---
+
+## Pull Request / Collaboration
+
+This branch is Montana's adaptation of [monitor-the-situation](https://github.com/scottew/monitor-the-situation) originally built for Utah. The architecture is identical — only the data source (MDT RWIS instead of UDOT) and map content differ.
+
+To submit a PR to the original repo:
+```bash
+git push origin montana
+# Then open a PR from your fork's montana branch → scottew/monitor-the-situation main
 ```
-
-Agent natural language examples:
-- `"what do road conditions look like on I-15 right now"`
-- `"show me cameras near Provo"`
-- `"I-80 weather conditions"`
 
 ---
 
 ## Data Source
 
-UDOT public traffic API at [udottraffic.utah.gov](https://www.udottraffic.utah.gov). No API key required.
+MDT (Montana Department of Transportation) public RWIS camera API.
 
-- Camera positions: `/map/mapIcons/Cameras` (~2,000+ cameras statewide)
-- Camera images: `/map/Cctv/{id}` (JPEG, ~1280×720, refreshed every ~60s)
+- Camera positions: `https://ftp.mdt.mt.gov/travinfo/weather/rwis.xml` (~120 Montana RWIS stations)
+- Camera images: `https://app.mdt.mt.gov/atms/public/camera/lastFiveImages/{positionId}` (JPEG, 720×480, refreshed every ~15 min during daylight)
+
+No API key required.
 
 ---
 
@@ -111,8 +120,19 @@ monitor-the-situation/
 ├── style.css
 ├── app.js
 ├── package.json
+├── vercel.json
+└── api/
+│   ├── mdt.js           MDT camera manifest proxy (parses RWIS XML)
+│   ├── mdt-image.js     MDT image redirect proxy (resolves dynamic URLs)
+│   ├── presence.js      Presence counter (disabled by default)
+│   └── test.js          API test endpoint
 └── cli/
-    ├── mts-cli.js            CLI (cameras, weather, show, serve, ask)
-    ├── mts-openclaw-tool.js  openclaw agent integration
+    ├── mts-cli.js       CLI + local dev proxy server
     └── package.json
 ```
+
+---
+
+## Original Project
+
+Based on [Monitor the Situation](https://utah.monitorit.app) by scottew — originally built for Utah DOT cameras.
