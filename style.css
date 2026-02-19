@@ -21,6 +21,47 @@
   --header-h:  44px;
 }
 
+/* ══ DARK MODE ════════════════════════════════ */
+body.dark {
+  --bg:        #000000;
+  --bg2:       #0d0d0d;
+  --bg3:       #1a1a1a;
+  --border:    #2a2a2a;
+  --border2:   #444444;
+  --accent:    #ffffff;
+  --accent2:   #cccccc;
+  --text:      #eeeeee;
+  --text-dim:  #999999;
+  --text-meta: #555555;
+}
+
+/* Hardcoded whites/blacks that don't use variables */
+body.dark .logo-text                       { color: #fff; }
+body.dark .filter-input,
+body.dark .filter-select                   { background: #111; }
+body.dark .btn-region,
+body.dark .btn-mode                        { background: #111; }
+body.dark #modal                           { background: #111; }
+body.dark .leaflet-container               { background: #111 !important; }
+body.dark #map,
+body.dark #map-container                   { background: #111; }
+body.dark .leaflet-control-zoom a          { background: #1a1a1a !important; color: #eee !important; border-color: #333 !important; }
+body.dark .leaflet-control-zoom a:hover   { background: #2a2a2a !important; }
+body.dark .leaflet-popup-content-wrapper   { background: #1a1a1a !important; color: #eee !important; border-color: #333 !important; }
+body.dark .leaflet-popup-tip              { background: #1a1a1a !important; }
+body.dark .cam-img                         { background: #111; }
+
+/* Invert map tiles (same trick as original dark theme) */
+body.dark .leaflet-tile-pane               { filter: invert(1) hue-rotate(180deg); }
+
+/* Corner brackets on camera cells */
+body.dark .cam-cell::before               { border-color: rgba(255,255,255,.12); }
+body.dark .cam-cell.error::after          { border: none; }  /* keep the error text, not a border */
+
+/* Dark-mode toggle button */
+#btn-dark-toggle                           { font-size: 14px; padding: 2px 7px; letter-spacing: 0; }
+body.dark #btn-dark-toggle                 { border-color: var(--accent3); color: var(--accent3); }
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 html, body {

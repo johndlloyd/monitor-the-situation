@@ -35,6 +35,7 @@ const state = {
 window.addEventListener('DOMContentLoaded', init);
 
 async function init() {
+  initDarkMode();
   startClock();
   initMap();
   initResizer();
@@ -740,6 +741,22 @@ function startPresence() {
 
   heartbeat();
   setInterval(heartbeat, 30000);
+}
+
+// ── Dark mode ──────────────────────────────────
+function initDarkMode() {
+  // Restore saved preference before first paint
+  if (localStorage.getItem('mts-dark') === '1') applyDark(true);
+
+  document.getElementById('btn-dark-toggle')
+    .addEventListener('click', () => applyDark(!document.body.classList.contains('dark')));
+}
+
+function applyDark(on) {
+  document.body.classList.toggle('dark', on);
+  localStorage.setItem('mts-dark', on ? '1' : '0');
+  // Leaflet needs a tile refresh after the CSS filter changes
+  if (state.map) state.map.invalidateSize();
 }
 
 // ── Mobile two-view layout ─────────────────────
