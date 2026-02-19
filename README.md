@@ -1,4 +1,4 @@
-# [MTS] — Monitor the Situation (Montana)
+# Monitor the Ski-tuation 🎿
 
 A command-center dashboard and CLI for monitoring MDT RWIS traffic cameras across Montana.
 
@@ -135,4 +135,4 @@ monitor-the-situation/
 
 ## Original Project
 
-Based on [Monitor the Situation](https://utah.monitorit.app) by scottew — originally built for Utah DOT cameras.
+Based on [Monitor the Ski-tuation](https://utah.monitorit.app) by scottew — originally built for Utah DOT cameras.

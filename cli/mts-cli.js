@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /* ═══════════════════════════════════════════════
-   MTS — MONITOR THE SITUATION CLI (Montana)
+   MTS — MONITOR THE SKI-TUATION CLI (Montana)
    For use standalone or as an openclaw agent tool
 
    Usage:
@@ -208,7 +208,7 @@ function printCameraTable(cameras, opts = {}) {
   const show  = cameras.slice(0, limit);
 
   console.log(c('cyan', '┌─────────────────────────────────────────────────────────────┐'));
-  console.log(c('cyan', '│') + c('bold', '  MONITOR THE SITUATION — MDT CAMERA RESULTS') + c('cyan', '                  │'));
+  console.log(c('cyan', '│') + c('bold', '  MONITOR THE SKI-TUATION — MDT CAMERA RESULTS') + c('cyan', '                  │'));
   console.log(c('cyan', '├──────────┬──────────────────────────────┬──────────┬─────────┤'));
   console.log(
     c('cyan', '│') + c('gray', '  CAM ID  ') +
@@ -500,7 +500,7 @@ function cmdServe(args) {
   server.listen(PORT, '0.0.0.0', () => {
     console.log('');
     console.log(c('cyan', '┌─────────────────────────────────────────────┐'));
-    console.log(c('cyan', '│') + c('bold', '  MONITOR THE SITUATION — SERVER ONLINE') + c('cyan', '       │'));
+    console.log(c('cyan', '│') + c('bold', '  MONITOR THE SKI-TUATION — SERVER ONLINE') + c('cyan', '       │'));
     console.log(c('cyan', '├─────────────────────────────────────────────┤'));
     console.log(c('cyan', '│') + c('green', `  http://localhost:${PORT}`) + ' '.repeat(27 - String(PORT).length) + c('cyan', '│'));
     console.log(c('cyan', '│') + c('dim',   '  MDT proxy: /api/mdt  /api/mdt-image') + '        ' + c('cyan', '│'));
