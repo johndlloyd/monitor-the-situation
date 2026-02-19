@@ -135,4 +135,4 @@ monitor-the-situation/
 
 ## Original Project
 
-Based on [Monitor the Ski-tuation](https://utah.monitorit.app) by scottew — originally built for Utah DOT cameras.
+Inspired by and heavily based on [Monitor the Situation](https://utah.monitorit.app) by scottew — originally built for Utah DOT cameras.
