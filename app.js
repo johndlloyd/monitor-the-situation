@@ -537,6 +537,14 @@ function bindControls() {
     renderGrid(state.filtered);
   });
 
+  // View All — set grid size to fit every filtered camera
+  document.getElementById('btn-view-all').addEventListener('click', () => {
+    const total = state.filtered.length;
+    if (!total) return;
+    state.gridSize = Math.min(20, Math.ceil(Math.sqrt(total)));
+    renderGrid(state.filtered);
+  });
+
   // Re-apply layout on panel resize (keeps cols correct, CSS handles cell size)
   new ResizeObserver(() => {
     if (state.filtered.length) applyAutoLayout();
