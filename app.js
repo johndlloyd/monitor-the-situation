@@ -297,7 +297,7 @@ async function fetchCameraName(camId) {
 
 // Icons defined at module scope so highlight/unhighlight can reference them
 const camIconNormal = () => L.divIcon({
-  className: '',
+  className: 'cam-marker',
   html: `<svg width="11" height="11" viewBox="0 0 11 11" xmlns="http://www.w3.org/2000/svg" style="display:block;overflow:visible">
     <line x1="5.5" y1="0" x2="5.5" y2="4"   stroke="#000000" stroke-width="1.5"/>
     <line x1="5.5" y1="7" x2="5.5" y2="11"  stroke="#000000" stroke-width="1.5"/>

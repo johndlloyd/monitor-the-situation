@@ -54,6 +54,10 @@ body.dark .cam-img                         { background: #111; }
 /* Invert map tiles (same trick as original dark theme) */
 body.dark .leaflet-tile-pane               { filter: invert(1) hue-rotate(180deg); }
 
+/* Map pins — flip black crosshair to white in dark mode */
+body.dark .cam-marker line                 { stroke: #ffffff; }
+body.dark .cam-marker rect                 { fill: rgba(255,255,255,0.85); }
+
 /* Corner brackets on camera cells */
 body.dark .cam-cell::before               { border-color: rgba(255,255,255,.12); }
 body.dark .cam-cell.error::after          { border: none; }  /* keep the error text, not a border */
