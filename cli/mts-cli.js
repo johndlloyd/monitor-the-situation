@@ -33,6 +33,15 @@ const C = {
   gray:   '\x1b[90m',
 };
 
+// Disable colors for non-interactive / explicit no-color
+if (
+  !process.stdout.isTTY ||
+  process.env.NO_COLOR !== undefined ||
+  process.argv.includes('--no-color')
+) {
+  for (const key of Object.keys(C)) C[key] = '';
+}
+
 const c = (color, str) => `${C[color]}${str}${C.reset}`;
 
 // ── Known regions ──────────────────────────────
@@ -146,10 +155,22 @@ function filterByArea(cameras, opts) {
   // By route
   if (opts.route) {
     const q = opts.route.toLowerCase();
-    out = out.filter(c =>
+    const routeFiltered = out.filter(c =>
       c.roadway.toLowerCase().includes(q) ||
       c.location.toLowerCase().includes(q)
     );
+    if (routeFiltered.length > 0) {
+      out = routeFiltered;
+    } else {
+      // Fallback: strip prefix (I-, SR-, US-, HWY) and retry as bare number
+      const bare = q.replace(/^(i-?|sr-?|us-?|hwy\s?)/i, '');
+      if (bare && bare !== q) {
+        out = out.filter(c =>
+          c.roadway.toLowerCase().includes(bare) ||
+          c.location.toLowerCase().includes(bare)
+        );
+      }
+    }
   }
 
   // By area name
@@ -329,7 +350,7 @@ async function cmdShow(args) {
       console.error(c('red', `  HTTP ${status}: Feed unavailable`));
     }
   } else {
-    if (opts.open || !opts.json) {
+    if (opts.open || (!opts.json && process.stdout.isTTY)) {
       try {
         execSync(`open "${imgUrl}"`);
       } catch (_) {
@@ -484,13 +505,22 @@ function cmdServe(args) {
     let filePath = pathname === '/' ? '/index.html' : pathname;
     const fullPath = path.join(WEB_DIR, filePath);
 
-    fs.readFile(fullPath, (err, data) => {
+    // Path traversal guard
+    const resolved = path.resolve(fullPath);
+    const webRoot  = path.resolve(WEB_DIR);
+    if (!resolved.startsWith(webRoot + path.sep) && resolved !== webRoot) {
+      res.writeHead(403);
+      res.end('Forbidden');
+      return;
+    }
+
+    fs.readFile(resolved, (err, data) => {
       if (err) {
         res.writeHead(404);
         res.end('Not found');
         return;
       }
-      const ext = path.extname(fullPath);
+      const ext = path.extname(resolved);
       const types = {
         '.html': 'text/html',
         '.css':  'text/css',
@@ -516,8 +546,9 @@ function cmdServe(args) {
     console.log(c('cyan', '└─────────────────────────────────────────────┘'));
     console.log('');
 
-    // Auto-open browser
-    if (!process.env.NO_OPEN) {
+    // Auto-open browser (only in TTY unless --open forces it)
+    const shouldOpen = opts.open || (process.stdout.isTTY && !opts['no-open']);
+    if (shouldOpen && !process.env.NO_OPEN) {
       try { execSync(`open http://localhost:${PORT}`); }
       catch (_) {
         try { execSync(`xdg-open http://localhost:${PORT}`); } catch (_) {}
@@ -619,6 +650,8 @@ ${c('dim', 'OPTIONS')}
   ${c('yellow', '--json')}       Output as JSON (for agent/script use)
   ${c('yellow', '--open')}       Open images in browser
   ${c('yellow', '--save')} FILE  Save camera image to file
+  ${c('yellow', '--no-color')}    Disable colored output (also: NO_COLOR env var)
+  ${c('yellow', '--no-open')}     Suppress auto-opening browser (serve command)
 
 ${c('dim', 'EXAMPLES')}
 
