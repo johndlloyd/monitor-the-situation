@@ -873,3 +873,169 @@ input[type="range"] {
 
 /* selected camera highlight */
 .cam-cell.selected { border-color: var(--accent3); box-shadow: 0 0 8px rgba(255,107,53,.3); }
+
+/* ══ MODE TABS (ALL | SKI) ════════════════════ */
+.tab-bar {
+  display: flex;
+  gap: 3px;
+  flex: 0 0 auto;
+}
+
+.tab {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  padding: 3px 10px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  letter-spacing: .1em;
+  font-weight: 700;
+  transition: all .12s;
+}
+.tab:hover { border-color: var(--accent3); color: var(--accent3); }
+.tab.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--bg);
+}
+
+/* ══ RESORT CHIP BAR ══════════════════════════ */
+#resort-chips {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg2);
+  gap: 4px;
+  flex-wrap: wrap;
+  overflow-x: auto;
+  flex: 0 0 auto;
+}
+#resort-chips::-webkit-scrollbar { height: 3px; }
+#resort-chips::-webkit-scrollbar-track { background: transparent; }
+#resort-chips::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+.chip {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  padding: 3px 9px;
+  border-radius: 10px;
+  cursor: pointer;
+  letter-spacing: .07em;
+  white-space: nowrap;
+  transition: all .12s;
+  flex: 0 0 auto;
+}
+.chip:hover { border-color: var(--accent3); color: var(--accent3); }
+.chip-active {
+  background: #4fc3f7;
+  border-color: #4fc3f7;
+  color: #fff;
+  font-weight: 700;
+}
+
+/* ══ SNOW PANEL ═══════════════════════════════ */
+#snow-panel {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg2);
+  flex: 0 0 auto;
+}
+
+.snow-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.snow-label {
+  color: var(--accent);
+  font-size: 9px;
+  letter-spacing: .12em;
+  font-weight: 700;
+}
+.snow-updated {
+  color: var(--text-meta);
+  font-size: 8px;
+  letter-spacing: .08em;
+}
+
+.snow-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+.snow-cards::-webkit-scrollbar { width: 3px; }
+.snow-cards::-webkit-scrollbar-track { background: transparent; }
+.snow-cards::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+.snow-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: default;
+}
+.snow-resort {
+  flex: 1;
+  font-size: 9px;
+  letter-spacing: .06em;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.snow-value {
+  color: #4fc3f7;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  flex: 0 0 auto;
+}
+.snow-temp {
+  color: var(--text-dim);
+  font-size: 9px;
+  letter-spacing: .06em;
+  flex: 0 0 auto;
+}
+.snow-loading,
+.snow-unavail {
+  color: var(--text-meta);
+  font-size: 9px;
+  letter-spacing: .12em;
+  padding: 8px 0;
+  text-align: center;
+}
+
+/* ══ NO-FEED PLACEHOLDER ══════════════════════ */
+.cam-cell.no-feed {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 6px;
+  cursor: default;
+  background: var(--bg2);
+}
+.no-feed-label {
+  color: var(--text-meta);
+  font-size: 9px;
+  letter-spacing: .1em;
+  text-align: center;
+  padding: 0 8px;
+  z-index: 1;
+}
+
+/* ══ SKI CAMS BUTTON ACTIVE STATE ═════════════ */
+.btn-ski-active {
+  border-color: #4fc3f7 !important;
+  color: #4fc3f7 !important;
+}

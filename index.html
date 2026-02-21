@@ -79,11 +79,16 @@
         </div>
       </div>
 
+      <div id="snow-panel" style="display:none"></div>
     </aside>
 
     <!-- RIGHT PANEL: CAMERA GRID -->
     <main id="grid-panel">
       <div class="panel-header">
+        <div class="tab-bar">
+          <button class="tab active" id="tab-all">ALL</button>
+          <button class="tab" id="tab-ski">⛷ SKI</button>
+        </div>
         <div class="grid-size-controls">
           <button class="btn-ghost" id="btn-fewer" title="Fewer cameras">− FEWER</button>
           <span class="grid-info" id="grid-info">5×5</span>
@@ -102,6 +107,7 @@
           <button class="btn-ghost" id="btn-refresh-now" title="Refresh all now">NOW</button>
         </div>
       </div>
+      <div id="resort-chips" style="display:none"></div>
 
       <div id="loading-screen">
         <div class="loading-inner">
@@ -147,6 +153,7 @@
   </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="resorts.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
