@@ -3,9 +3,10 @@
    MDT RWIS Traffic Camera Monitor
    ═══════════════════════════════════════════════ */
 
-// Image requests route through the mdt-image serverless function,
-// which resolves the dynamic MDT image URL and returns a 302 redirect.
-const IMG_API = '/api/mdt-image';
+// All camera images route through cam-snapshot, which fetches + caches
+// the image buffer server-side for 12 hours and always serves the last
+// known-good snapshot rather than a blank or broken feed.
+const IMG_API = '/api/cam-snapshot';
 
 // Default home: Missoula, MT (western MT hub, near Snowbowl + ski corridor)
 const HOME = { lat: 46.8721, lng: -113.9940, zoom: 10 };
@@ -22,7 +23,7 @@ function buildStaticCameras() {
       location: `${resort.name} — ${cam.name}`,
       type:     'ski',
       resortId: resort.id,
-      imgUrl:   cam.url,   // may be null
+      imgUrl:   cam.url ? `${IMG_API}?url=${encodeURIComponent(cam.url)}` : null,
     }))
   );
 }
@@ -44,7 +45,7 @@ const state = {
   cols:          5,
   modalIdx:     -1,
   modalCam:     null,
-  refreshCache: {},   // cameraId → timestamp
+  refreshCache: {},
   snowData:     null, // { resorts, lastUpdated, note } from /api/snow
   snowLoading:  false,
 };
@@ -573,11 +574,8 @@ function makeCamCell(cam, idx) {
     return cell;
   }
 
-  const cacheBreak = state.refreshCache[cam.id] || Date.now();
-
-  // Append _t param so the mdt-image proxy isn't stuck on a cached 302
   cell.innerHTML = `
-    <img class="cam-img" src="${cam.imgUrl}${cam.imgUrl.includes('?') ? '&' : '?'}_t=${cacheBreak}"
+    <img class="cam-img" src="${cam.imgUrl}"
          loading="lazy"
          alt="${name}"
          draggable="false">
@@ -633,7 +631,7 @@ function openModal(cam) {
   }
 
   showModalSpinner();
-  img.src = `${cam.imgUrl}${cam.imgUrl.includes('?') ? '&' : '?'}_t=${Date.now()}`;
+  img.src = cam.imgUrl;
   img.onload  = () => { hideModalSpinner(); ts.textContent = new Date().toLocaleTimeString(); };
   img.onerror = () => { hideModalSpinner(); ts.textContent = 'FEED UNAVAILABLE'; };
 
@@ -666,7 +664,7 @@ window.refreshModal = function() {
   const img = document.getElementById('modal-img');
   const ts  = document.getElementById('modal-timestamp');
   showModalSpinner();
-  img.src = `${cam.imgUrl}${cam.imgUrl.includes('?') ? '&' : '?'}_t=${Date.now()}`;
+  img.src = cam.imgUrl;
   img.onload  = () => { hideModalSpinner(); ts.textContent = new Date().toLocaleTimeString(); };
   img.onerror = () => { hideModalSpinner(); ts.textContent = 'FEED UNAVAILABLE'; };
 };
@@ -711,7 +709,7 @@ function refreshAllVisible() {
     state.refreshCache[id] = now;
     const cam = state.cameras.find(c => String(c.id) === String(id));
     if (cam && cam.imgUrl) {
-      img.src = `${cam.imgUrl}${cam.imgUrl.includes('?') ? '&' : '?'}_t=${now}`;
+      img.src = cam.imgUrl;
     }
   });
 }
