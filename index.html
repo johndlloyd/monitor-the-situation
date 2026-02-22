@@ -80,6 +80,9 @@
       </div>
 
       <div id="snow-panel" style="display:none"></div>
+      <div id="sidebar-credit">
+        inspired by <a href="https://utah.monitorit.app" target="_blank" rel="noopener">Monitor the Situation</a> by @scottew
+      </div>
     </aside>
 
     <!-- RIGHT PANEL: CAMERA GRID -->
@@ -90,10 +93,14 @@
           <button class="tab" id="tab-ski">⛷ SKI</button>
         </div>
         <div class="grid-size-controls">
+          <div class="scope-toggle" role="group" aria-label="Camera scope">
+            <button class="btn-ghost active" id="btn-scope-ski" title="Show ski cameras only">⛷ SKI</button>
+            <button class="btn-ghost" id="btn-scope-all" title="Show all cameras">◎ ALL</button>
+          </div>
           <button class="btn-ghost" id="btn-fewer" title="Fewer cameras">− FEWER</button>
           <span class="grid-info" id="grid-info">5×5</span>
           <button class="btn-ghost" id="btn-more"  title="More cameras">+ MORE</button>
-          <button class="btn-ghost" id="btn-view-all" title="View all cameras on map">VIEW ALL</button>
+          <button class="btn-ghost" id="btn-view-all" title="Expand grid to show all current cameras">MAX GRID</button>
         </div>
         <div class="refresh-controls">
           <label class="filter-label">REFRESH</label>
@@ -108,6 +115,28 @@
         </div>
       </div>
       <div id="resort-chips" style="display:none"></div>
+
+      <section id="ski-summary" aria-live="polite">
+        <div class="ski-summary-head">
+          <span class="panel-label">// SKI CONDITIONS SNAPSHOT</span>
+          <span class="ski-summary-updated" id="ski-summary-updated">UPDATING...</span>
+        </div>
+        <div class="ski-summary-metrics">
+          <div class="ski-metric">
+            <span class="ski-metric-label">RESORT FEEDS</span>
+            <span class="ski-metric-value" id="ski-total">--</span>
+          </div>
+          <div class="ski-metric">
+            <span class="ski-metric-label">ONLINE</span>
+            <span class="ski-metric-value ok" id="ski-online">--</span>
+          </div>
+          <div class="ski-metric">
+            <span class="ski-metric-label">OFFLINE</span>
+            <span class="ski-metric-value bad" id="ski-offline">--</span>
+          </div>
+        </div>
+        <div class="ski-resort-list" id="ski-resort-list"></div>
+      </section>
 
       <div id="loading-screen">
         <div class="loading-inner">

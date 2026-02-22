@@ -34,8 +34,8 @@ const state = {
   filtered:     [],   // after filters applied
   map:          null,
   markers:      [],
-  useDefault:       true,  // show ski cams + nearest MDT to Missoula until user navigates
-  skiOnly:          false, // show only ski resort cameras
+  useDefault:       false,
+  skiOnly:          true,  // show only ski resort cameras
   selectedResort:   null,  // null = all resorts; string = resort id
   programmaticMove: false, // suppress moveend during setView calls we initiated
   fitAfterFilter:   false, // fit map bounds to grid results on next renderGrid call
@@ -45,9 +45,11 @@ const state = {
   cols:          5,
   modalIdx:     -1,
   modalCam:     null,
-  refreshCache: {},
+  refreshCache: {},   // cameraId → timestamp
   snowData:     null, // { resorts, lastUpdated, note } from /api/snow
   snowLoading:  false,
+  camHealth:    {},   // cameraId -> true (ok) | false (err) | undefined (pending)
+  cardMetaTimer: null,
 };
 
 // ── Init ───────────────────────────────────────
@@ -61,7 +63,11 @@ async function init() {
   initResizer();
   initModalTouch();
   bindControls();
+  updateScopeButtons();
+  updateSkiSummary();
+  if (window.innerWidth <= 600) setMobileView('feeds');
   if (window.innerWidth <= 600) state.gridSize = 2;
+  if (!state.cardMetaTimer) state.cardMetaTimer = setInterval(updateVisibleCellMeta, 1000);
   await loadCameras();
   startRefreshCycle();
   // If ski mode was restored from localStorage, kick off snow fetch
@@ -295,8 +301,6 @@ function onMapChange() {
   }
   if (state.cameras.length) {
     state.useDefault = false;
-    state.skiOnly    = false;
-    showSkiUI(false);
     applyFilters();
   }
 }
@@ -341,6 +345,7 @@ async function loadCameras(attempt) {
 
     setStatus(`ESTABLISHING ${cameras.length} FEEDS...`, 70);
     state.cameras = cameras;
+    state.camHealth = Object.fromEntries(cameras.map((c) => [String(c.id), undefined]));
 
     addMapMarkers(cameras);
     state.filtered = [...cameras];
@@ -452,49 +457,29 @@ function addMapMarkers(cameras) {
 // ── Filter / Render ────────────────────────────
 
 function applyFilters() {
-  state.gridSize = 5;
   const all = [...state.cameras];
-
-  // ── SKI ONLY mode ──────────────────────────────
+  let cams = [];
   if (state.skiOnly) {
     let ski = all.filter(c => c.type === 'ski');
     if (state.selectedResort) {
       ski = ski.filter(c => c.resortId === state.selectedResort);
     }
-    state.filtered = ski;
-    state.gridSize = Math.min(20, Math.ceil(Math.sqrt(ski.length)));
-    renderGrid(ski);
+    cams = ski;
     renderSnowPanel();
-    updateStats();
-    return;
+  } else {
+    const bounds = state.map.getBounds();
+    cams = bounds
+      ? all.filter(c =>
+          c.lat >= bounds.getSouth() &&
+          c.lat <= bounds.getNorth() &&
+          c.lng >= bounds.getWest() &&
+          c.lng <= bounds.getEast()
+        )
+      : all;
   }
-
-  // ── DEFAULT mode: all ski cams + nearest MDT to Missoula ──
-  if (state.useDefault) {
-    const skiCams = all.filter(c => c.type === 'ski');
-    const mdtCams = all.filter(c => c.type !== 'ski').sort((a, b) =>
-      haversine(HOME.lat, HOME.lng, a.lat, a.lng) -
-      haversine(HOME.lat, HOME.lng, b.lat, b.lng)
-    );
-    const combined = [...skiCams, ...mdtCams];
-    state.filtered = combined;
-    renderGrid(combined);
-    updateStats();
-    return;
-  }
-
-  // ── VIEWPORT mode ──────────────────────────────
-  const bounds = state.map.getBounds();
-  let cams = bounds
-    ? all.filter(c =>
-        c.lat >= bounds.getSouth() &&
-        c.lat <= bounds.getNorth() &&
-        c.lng >= bounds.getWest() &&
-        c.lng <= bounds.getEast()
-      )
-    : all;
 
   state.filtered = cams;
+  updateScopeButtons();
   renderGrid(cams);
   updateStats();
 }
@@ -516,7 +501,6 @@ function renderGrid(cameras) {
   const grid  = document.getElementById('camera-grid');
   const noRes = document.getElementById('no-results');
 
-  // Restore correct icon per marker type (ski = blue, traffic = black)
   state.markers.forEach(m => {
     m.setIcon(m.isSki ? skiIconNormal() : camIconNormal());
     m.setZIndexOffset(0);
@@ -556,12 +540,17 @@ function renderGrid(cameras) {
 function makeCamCell(cam, idx) {
   const cell = document.createElement('div');
   cell.className = 'cam-cell';
+  if (cam.type === 'ski') cell.classList.add('ski-cam');
   cell.dataset.id  = cam.id;
   cell.dataset.idx = idx;
-
+  const camId = String(cam.id);
+  if (!state.refreshCache[camId]) state.refreshCache[camId] = Date.now();
   const name = cam.location && !cam.location.startsWith('CAM-')
     ? cam.location
     : `CAM-${cam.id}`;
+  const roadLabel = cam.type === 'ski'
+    ? getResortName(cam)
+    : (cam.roadway || 'MDT RWIS');
 
   // Cameras with no URL — show "Camera link needed" placeholder
   if (!cam.imgUrl) {
@@ -577,8 +566,19 @@ function makeCamCell(cam, idx) {
   cell.innerHTML = `
     <img class="cam-img" src="${cam.imgUrl}"
          loading="lazy"
-         alt="${name}"
+         alt="${esc(name)}"
          draggable="false">
+    <div class="cam-overlay-top">
+      <div class="cam-title">${esc(name)}</div>
+      <div class="cam-tags">
+        <span class="cam-tag ${cam.type === 'ski' ? 'ski' : 'traffic'}">${cam.type === 'ski' ? 'SKI' : 'TRAFFIC'}</span>
+        <span class="cam-tag route">${esc(roadLabel)}</span>
+      </div>
+    </div>
+    <div class="cam-overlay-bottom">
+      <span class="cam-feed-state pending">CHECKING</span>
+      <span class="cam-freshness">updated now</span>
+    </div>
     <div class="cam-status"></div>
   `;
 
@@ -587,14 +587,25 @@ function makeCamCell(cam, idx) {
 
   const img = cell.querySelector('.cam-img');
   const dot = cell.querySelector('.cam-status');
+  const feedState = cell.querySelector('.cam-feed-state');
+  const freshness = cell.querySelector('.cam-freshness');
+
+  if (freshness) freshness.textContent = `updated ${formatAge(Date.now() - state.refreshCache[camId])}`;
+  applyCamHealthUi(cell, dot, feedState, state.camHealth[camId]);
 
   img.onerror = () => {
     cell.classList.add('error');
-    dot.classList.add('err');
+    state.camHealth[camId] = false;
+    applyCamHealthUi(cell, dot, feedState, false);
+    updateSkiSummary();
   };
   img.onload = () => {
     cell.classList.remove('error');
-    dot.classList.remove('err');
+    state.refreshCache[camId] = Date.now();
+    state.camHealth[camId] = true;
+    applyCamHealthUi(cell, dot, feedState, true);
+    if (freshness) freshness.textContent = 'updated now';
+    updateSkiSummary();
   };
 
   cell.addEventListener('click', () => openModal(cam));
@@ -705,13 +716,19 @@ function refreshAllVisible() {
   document.querySelectorAll('.cam-cell').forEach(cell => {
     const id  = cell.dataset.id;
     const img = cell.querySelector('.cam-img');
+    const dot = cell.querySelector('.cam-status');
+    const feedState = cell.querySelector('.cam-feed-state');
     if (!img) return;
     state.refreshCache[id] = now;
+    state.camHealth[String(id)] = undefined;
+    applyCamHealthUi(cell, dot, feedState, undefined);
     const cam = state.cameras.find(c => String(c.id) === String(id));
     if (cam && cam.imgUrl) {
       img.src = cam.imgUrl;
     }
   });
+  updateVisibleCellMeta();
+  updateSkiSummary();
 }
 
 // ── Controls ───────────────────────────────────
@@ -719,11 +736,11 @@ function bindControls() {
   const mapToggleBtn = document.getElementById('btn-map-toggle');
   if (mapToggleBtn) {
     if (window.innerWidth <= 600) {
-      mapToggleBtn.textContent = '⊞ FEEDS';
-      mapToggleBtn.title = 'View camera feeds';
+      mapToggleBtn.textContent = '← MAP';
+      mapToggleBtn.title = 'View map and quick regions';
     }
     mapToggleBtn.addEventListener('click', () => setMobileView(
-      document.getElementById('grid-panel').classList.contains('mobile-visible') ? 'map' : 'feeds'
+      document.getElementById('grid-panel').classList.contains('mobile-hidden') ? 'feeds' : 'map'
     ));
   }
 
@@ -737,7 +754,20 @@ function bindControls() {
     enterSkiMode();
   });
 
-  // SKI CAMS sidebar button (also enters ski mode)
+  const skiScopeBtn = document.getElementById('btn-scope-ski');
+  const allScopeBtn = document.getElementById('btn-scope-all');
+  if (skiScopeBtn) {
+    skiScopeBtn.addEventListener('click', () => {
+      enterSkiMode();
+      if (window.innerWidth <= 600) setMobileView('feeds');
+    });
+  }
+  if (allScopeBtn) {
+    allScopeBtn.addEventListener('click', () => {
+      exitSkiMode();
+      if (window.innerWidth <= 600) setMobileView('feeds');
+    });
+  }
   document.getElementById('btn-ski-cams').addEventListener('click', () => {
     if (state.skiOnly) {
       exitSkiMode();
@@ -821,16 +851,19 @@ function applyAutoLayout() {
 }
 
 function resetFilters() {
-  state.useDefault       = true;
-  state.skiOnly          = false;
+  state.useDefault       = false;
+  state.skiOnly          = true;
   state.selectedResort   = null;
   state.programmaticMove = true;
   state.gridSize         = 5;
-  localStorage.setItem('mts-mode', 'default');
-  localStorage.removeItem('mts-resort');
-  showSkiUI(false);
+  localStorage.setItem('mts-mode', 'ski');
+  localStorage.setItem('mts-resort', '');
+  showSkiUI(true);
+  renderResortChips();
   state.map.setView([HOME.lat, HOME.lng], HOME.zoom, { animate: true });
   applyFilters();
+  fitToGrid(state.filtered);
+  if (window.innerWidth <= 600) setMobileView('feeds');
 }
 
 // ── Loading / Stats ────────────────────────────
@@ -851,6 +884,103 @@ function updateStats() {
   document.getElementById('stat-active').textContent = state.filtered.length;
 }
 
+function applyCamHealthUi(cell, dot, feedStateEl, health) {
+  if (!dot || !feedStateEl) return;
+  dot.classList.toggle('err', health === false);
+  dot.classList.toggle('pending', health === undefined);
+
+  feedStateEl.classList.remove('ok', 'bad', 'pending');
+  if (health === true) {
+    feedStateEl.classList.add('ok');
+    feedStateEl.textContent = 'LIVE';
+    cell.classList.remove('is-pending');
+  } else if (health === false) {
+    feedStateEl.classList.add('bad');
+    feedStateEl.textContent = 'OFFLINE';
+    cell.classList.remove('is-pending');
+  } else {
+    feedStateEl.classList.add('pending');
+    feedStateEl.textContent = 'CHECKING';
+    cell.classList.add('is-pending');
+  }
+}
+
+function updateVisibleCellMeta() {
+  const now = Date.now();
+  document.querySelectorAll('.cam-cell').forEach((cell) => {
+    const id = cell.dataset.id;
+    const freshness = cell.querySelector('.cam-freshness');
+    if (!freshness) return;
+    const ts = state.refreshCache[id];
+    freshness.textContent = ts ? `updated ${formatAge(now - ts)}` : 'updating...';
+  });
+}
+
+function updateScopeButtons() {
+  const skiBtn = document.getElementById('btn-scope-ski');
+  const allBtn = document.getElementById('btn-scope-all');
+  if (!skiBtn || !allBtn) return;
+  skiBtn.classList.toggle('active', state.skiOnly);
+  allBtn.classList.toggle('active', !state.skiOnly);
+}
+
+function getResortName(cam) {
+  if (!cam || cam.type !== 'ski') return 'Unknown';
+  const raw = (cam.location || 'Unknown').split('—')[0].trim();
+  return raw || 'Unknown';
+}
+
+function updateSkiSummary() {
+  const totalEl = document.getElementById('ski-total');
+  const onlineEl = document.getElementById('ski-online');
+  const offlineEl = document.getElementById('ski-offline');
+  const updatedEl = document.getElementById('ski-summary-updated');
+  const resortListEl = document.getElementById('ski-resort-list');
+  if (!totalEl || !onlineEl || !offlineEl || !updatedEl || !resortListEl) return;
+
+  const skiCams = state.cameras.filter((c) => c.type === 'ski');
+  const total = skiCams.length;
+  let online = 0;
+  let offline = 0;
+  let unknown = 0;
+  const resortCounts = new Map();
+
+  skiCams.forEach((cam) => {
+    const key = String(cam.id);
+    const health = state.camHealth[key];
+    if (health === true) online += 1;
+    else if (health === false) offline += 1;
+    else unknown += 1;
+
+    const resort = getResortName(cam);
+    const curr = resortCounts.get(resort) || { total: 0, online: 0, offline: 0 };
+    curr.total += 1;
+    if (health === true) curr.online += 1;
+    if (health === false) curr.offline += 1;
+    resortCounts.set(resort, curr);
+  });
+
+  totalEl.textContent = String(total);
+  onlineEl.textContent = String(online);
+  offlineEl.textContent = String(offline);
+
+  const t = new Date().toLocaleTimeString('en-US', {
+    hour12: false,
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    timeZone: 'America/Denver',
+  });
+  updatedEl.textContent = unknown ? `UPDATED ${t} · ${unknown} CHECKING` : `UPDATED ${t}`;
+
+  const sorted = [...resortCounts.entries()].sort((a, b) => b[1].total - a[1].total || a[0].localeCompare(b[0]));
+  resortListEl.innerHTML = sorted
+    .map(([name, stat]) => {
+      return `<span class="ski-resort-pill"><strong>${name}</strong> ${stat.online}/${stat.total} online</span>`;
+    })
+    .join('');
+}
+
 // ── Helpers ────────────────────────────────────
 function haversine(lat1, lng1, lat2, lng2) {
   const R = 6371000;
@@ -860,6 +990,25 @@ function haversine(lat1, lng1, lat2, lng2) {
   const Δλ = (lng2 - lng1) * Math.PI / 180;
   const a = Math.sin(Δφ/2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ/2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function formatAge(ms) {
+  if (ms < 2000) return 'now';
+  const secs = Math.floor(ms / 1000);
+  if (secs < 60) return `${secs}s ago`;
+  const mins = Math.floor(secs / 60);
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  return `${hrs}h ago`;
+}
+
+function esc(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 // ── Dark mode ──────────────────────────────────
@@ -882,15 +1031,15 @@ function setMobileView(view) {
   const gridPanel = document.getElementById('grid-panel');
   const btn       = document.getElementById('btn-map-toggle');
 
-  if (view === 'feeds') {
-    sidebar.classList.add('mobile-hidden');
-    gridPanel.classList.add('mobile-visible');
-    if (btn) { btn.textContent = '← MAP'; btn.classList.add('active'); }
-  } else {
-    sidebar.classList.remove('mobile-hidden');
-    gridPanel.classList.remove('mobile-visible');
-    if (btn) { btn.textContent = '⊞ FEEDS'; btn.classList.remove('active'); }
+  if (view === 'map') {
+    sidebar.classList.add('mobile-visible');
+    gridPanel.classList.add('mobile-hidden');
+    if (btn) { btn.textContent = '⊞ FEEDS'; btn.classList.add('active'); }
     if (state.map) setTimeout(() => state.map.invalidateSize(), 50);
+  } else {
+    sidebar.classList.remove('mobile-visible');
+    gridPanel.classList.remove('mobile-hidden');
+    if (btn) { btn.textContent = '← MAP'; btn.classList.remove('active'); }
   }
 }
 

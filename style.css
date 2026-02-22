@@ -50,6 +50,12 @@ body.dark .leaflet-control-zoom a:hover   { background: #2a2a2a !important; }
 body.dark .leaflet-popup-content-wrapper   { background: #1a1a1a !important; color: #eee !important; border-color: #333 !important; }
 body.dark .leaflet-popup-tip              { background: #1a1a1a !important; }
 body.dark .cam-img                         { background: #111; }
+body.dark .cam-overlay-top,
+body.dark .cam-overlay-bottom              { background: linear-gradient(to bottom, rgba(0,0,0,.88), rgba(0,0,0,0)); }
+body.dark .cam-overlay-bottom              { background: linear-gradient(to top, rgba(0,0,0,.88), rgba(0,0,0,0)); }
+body.dark .cam-tag.route                   { background: rgba(255,255,255,.12); color: #ddd; border-color: rgba(255,255,255,.2); }
+body.dark .cam-title,
+body.dark .cam-freshness                   { color: #f0f0f0; }
 
 /* Invert map tiles (same trick as original dark theme) */
 body.dark .leaflet-tile-pane               { filter: invert(1) hue-rotate(180deg); }
@@ -150,6 +156,22 @@ html, body {
 #sidebar::-webkit-scrollbar { width: 4px; }
 #sidebar::-webkit-scrollbar-track { background: var(--bg2); }
 #sidebar::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+#sidebar-credit {
+  margin-top: auto;
+  padding: 10px 12px;
+  border-top: 1px solid var(--border);
+  font-size: 10px;
+  color: var(--text-meta);
+  letter-spacing: .06em;
+}
+#sidebar-credit a {
+  color: var(--text-dim);
+  text-decoration: none;
+}
+#sidebar-credit a:hover {
+  color: var(--accent3);
+}
 
 .panel-header {
   display: flex;
@@ -374,6 +396,7 @@ input[type="range"] {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .refresh-controls {
@@ -390,6 +413,102 @@ input[type="range"] {
   letter-spacing: .1em;
   min-width: 80px;
   text-align: center;
+}
+
+.scope-toggle {
+  display: inline-flex;
+  gap: 4px;
+  margin-right: 4px;
+}
+
+.scope-toggle .btn-ghost {
+  min-width: 68px;
+}
+
+#btn-scope-ski.active,
+#btn-scope-all.active {
+  border-color: var(--accent3);
+  color: var(--accent3);
+  background: rgba(255, 107, 53, 0.08);
+}
+
+#ski-summary {
+  border-bottom: 1px solid var(--border);
+  background: var(--bg2);
+  padding: 8px 12px 10px;
+}
+
+.ski-summary-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.ski-summary-updated {
+  color: var(--text-meta);
+  font-size: 9px;
+  letter-spacing: .12em;
+}
+
+.ski-summary-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.ski-metric {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 6px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.ski-metric-label {
+  color: var(--text-meta);
+  font-size: 9px;
+  letter-spacing: .1em;
+}
+
+.ski-metric-value {
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: .08em;
+}
+
+.ski-metric-value.ok {
+  color: #1d8f46;
+}
+
+.ski-metric-value.bad {
+  color: var(--danger);
+}
+
+.ski-resort-list {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.ski-resort-pill {
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-dim);
+  border-radius: var(--radius);
+  font-size: 9px;
+  letter-spacing: .08em;
+  padding: 3px 7px;
+  white-space: nowrap;
+}
+
+.ski-resort-pill strong {
+  color: var(--accent);
 }
 
 /* ── LOADING ── */
@@ -446,7 +565,7 @@ input[type="range"] {
 /* ── CAMERA GRID ── */
 #camera-grid {
   flex: 1;
-  overflow: hidden;
+  overflow: auto;
   padding: 4px;
   display: grid;
   grid-template-columns: repeat(5, 1fr); /* overridden by JS */
@@ -483,6 +602,115 @@ input[type="range"] {
   background: #e8e8e8;
 }
 
+.cam-overlay-top,
+.cam-overlay-bottom {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 3;
+  pointer-events: none;
+  padding: 6px 7px;
+}
+
+.cam-overlay-top {
+  top: 0;
+  background: linear-gradient(to bottom, rgba(255,255,255,.9), rgba(255,255,255,0));
+}
+
+.cam-overlay-bottom {
+  bottom: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(to top, rgba(255,255,255,.95), rgba(255,255,255,0));
+}
+
+.cam-title {
+  color: #111;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .05em;
+  line-height: 1.2;
+  text-shadow: 0 1px 0 rgba(255,255,255,.35);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cam-tags {
+  margin-top: 4px;
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.cam-tag {
+  border: 1px solid rgba(17,17,17,.25);
+  background: rgba(255,255,255,.7);
+  color: #222;
+  font-size: 8px;
+  letter-spacing: .08em;
+  padding: 1px 5px;
+  border-radius: 999px;
+  max-width: 62%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cam-tag.ski {
+  border-color: rgba(53, 167, 216, .6);
+  color: #0f6f97;
+  background: rgba(79,195,247,.2);
+}
+
+.cam-tag.traffic {
+  border-color: rgba(255, 107, 53, .55);
+  color: #8f2f0b;
+  background: rgba(255,107,53,.2);
+}
+
+.cam-tag.route {
+  border-color: rgba(17,17,17,.18);
+}
+
+.cam-feed-state {
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  border-radius: 999px;
+  padding: 2px 6px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.cam-feed-state.ok {
+  color: #1d8f46;
+  border-color: rgba(29, 143, 70, .4);
+  background: rgba(29, 143, 70, .1);
+}
+
+.cam-feed-state.bad {
+  color: var(--danger);
+  border-color: rgba(204, 0, 0, .4);
+  background: rgba(204, 0, 0, .1);
+}
+
+.cam-feed-state.pending {
+  color: #8a6d1a;
+  border-color: rgba(138, 109, 26, .35);
+  background: rgba(231, 193, 70, .18);
+}
+
+.cam-freshness {
+  color: var(--text-dim);
+  font-size: 8px;
+  letter-spacing: .08em;
+  white-space: nowrap;
+}
+
 
 
 /* Always-visible status dot */
@@ -495,21 +723,32 @@ input[type="range"] {
   border-radius: 50%;
   background: #22c55e;
   box-shadow: 0 0 5px rgba(34,197,94,.6);
+  z-index: 4;
 }
 .cam-status.err { background: var(--danger); box-shadow: 0 0 5px rgba(204,0,0,.5); }
+.cam-status.pending { background: #e7c146; box-shadow: 0 0 5px rgba(231,193,70,.7); }
 
 /* Error state */
-.cam-cell.error .cam-img { opacity: .2; }
+.cam-cell.error .cam-img { opacity: .24; }
 .cam-cell.error::after {
-  content: '// FEED UNAVAILABLE';
+  content: '// FEED OFFLINE';
   position: absolute;
-  inset: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 18px;
   display: flex;
   align-items: center;
   justify-content: center;
   color: var(--text-meta);
-  font-size: 9px;
+  font-size: 8px;
   letter-spacing: .1em;
+  background: rgba(0,0,0,.14);
+  z-index: 2;
+}
+
+.cam-cell.is-pending .cam-img {
+  filter: grayscale(.12);
 }
 
 #no-results {
@@ -760,7 +999,11 @@ input[type="range"] {
   #btn-map-toggle  { display: inline-flex; }
   .header-center   { display: none; }
   .logo-sub        { display: none; }
-  .header-right    { gap: 8px; }
+  .logo-text       { font-size: 11px; letter-spacing: .08em; }
+  .header-right    { gap: 6px; }
+  .clock           { display: none; }
+  .tz              { display: none; }
+  #header          { padding: 0 10px; gap: 10px; }
 
   /* Stack sidebar above grid in a column */
   #main {
@@ -768,9 +1011,9 @@ input[type="range"] {
     overflow: hidden;
   }
 
-  /* Sidebar: MAP VIEW — visible by default on mobile */
+  /* Sidebar: MAP VIEW — hidden by default on mobile */
   #sidebar {
-    display: flex;
+    display: none;
     width: 100% !important;
     flex: 1 !important;
     max-height: none;
@@ -778,11 +1021,10 @@ input[type="range"] {
     border-right: none;
     border-bottom: none;
   }
-  /* Hidden when switched to feeds view */
-  #sidebar.mobile-hidden { display: none !important; }
+  #sidebar.mobile-visible { display: flex !important; }
 
   /* Map takes up most of the screen */
-  #map-container { height: 52vh; min-height: 180px; }
+  #map-container { height: 46vh; min-height: 180px; }
 
   /* Region buttons fill remaining height below map, scroll if needed */
   #sidebar > .filter-section {
@@ -798,28 +1040,45 @@ input[type="range"] {
   /* Hide the corner resize handle */
   #map-resizer { display: none; }
 
-  /* Grid panel: FEEDS VIEW — hidden by default on mobile */
+  /* Grid panel: FEEDS VIEW — visible by default on mobile */
   #grid-panel {
-    display: none;
+    display: flex;
     flex: 1;
     min-height: 0;
     overflow: hidden;
   }
-  #grid-panel.mobile-visible { display: flex; }
+  #grid-panel.mobile-hidden { display: none !important; }
 
   #camera-grid {
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     align-content: start;
+    padding: 6px;
+    gap: 6px;
   }
 
   /* Compact panel header */
-  #grid-panel .panel-header { flex-wrap: wrap; gap: 6px; padding: 6px 10px; }
+  #grid-panel .panel-header { flex-wrap: wrap; gap: 6px; padding: 6px 8px; }
+  .grid-size-controls { gap: 5px; }
+  .grid-info { min-width: 66px; font-size: 10px; }
+  .scope-toggle .btn-ghost { min-width: 56px; }
+  #ski-summary { padding: 8px 8px 10px; }
+  .ski-summary-head { margin-bottom: 6px; }
+  .ski-summary-updated { font-size: 8px; letter-spacing: .08em; }
+  .ski-summary-metrics { gap: 5px; }
+  .ski-metric { padding: 6px; }
+  .ski-metric-value { font-size: 12px; }
   .refresh-controls { margin-left: 0; }
 
   /* Larger tap targets */
-  .btn-ghost  { padding: 6px 10px; font-size: 11px; }
+  .btn-ghost  { padding: 6px 8px; font-size: 10px; }
   .btn-region { padding: 8px 4px; }
+  .cam-overlay-top,
+  .cam-overlay-bottom { padding: 5px 6px; }
+  .cam-title { font-size: 8px; }
+  .cam-tag,
+  .cam-feed-state,
+  .cam-freshness { font-size: 7px; }
 
   /* Modal: full-screen on mobile */
   #modal {
@@ -830,6 +1089,46 @@ input[type="range"] {
     border-right: none !important;
   }
   #modal-img { max-height: calc(100vh - 90px); }
+}
+
+@media (max-width: 390px) {
+  #header { padding: 0 8px; gap: 8px; }
+  .logo-text { font-size: 10px; letter-spacing: .06em; }
+  .logo-bracket { font-size: 13px; }
+  .btn-ghost { padding: 5px 7px; font-size: 9px; }
+  .scope-toggle .btn-ghost { min-width: 50px; }
+  .grid-info { min-width: 56px; font-size: 9px; }
+
+  #camera-grid { padding: 4px; gap: 4px; }
+  .cam-overlay-top,
+  .cam-overlay-bottom { padding: 4px 5px; }
+  .cam-overlay-bottom { gap: 4px; }
+  .cam-title { font-size: 7px; letter-spacing: .04em; }
+  .cam-tags { margin-top: 3px; gap: 3px; }
+  .cam-tag {
+    font-size: 6px;
+    padding: 1px 4px;
+    max-width: 52%;
+  }
+  .cam-tag.route { max-width: 42%; }
+  .cam-feed-state {
+    font-size: 6px;
+    padding: 1px 4px;
+    letter-spacing: .08em;
+  }
+  .cam-freshness {
+    font-size: 6px;
+    max-width: 46%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: right;
+  }
+  .cam-status {
+    width: 5px;
+    height: 5px;
+    top: 4px;
+    right: 4px;
+  }
 }
 
 /* ── corner brackets on camera cells ── */
@@ -855,17 +1154,20 @@ input[type="range"] {
 }
 /* override error state's ::after */
 .cam-cell.error::after {
-  content: '// FEED UNAVAILABLE';
-  width: auto; height: auto;
+  content: '// FEED OFFLINE';
+  width: auto;
+  height: 18px;
   border: none;
-  inset: 0;
+  inset: auto 0 0 0;
   display: flex;
   align-items: center;
   justify-content: center;
   color: var(--text-meta);
-  font-size: 9px;
+  font-size: 8px;
   letter-spacing: .1em;
   font-family: var(--font-mono);
+  background: rgba(0,0,0,.14);
+  z-index: 2;
 }
 
 /* draw-mode cursor */
